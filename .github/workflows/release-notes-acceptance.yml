@@ -284,6 +284,19 @@ jobs:
             -H 'X-GitHub-Api-Version: 2026-03-10' \
             "repos/$GITHUB_REPOSITORY/commits/$commit/pulls?per_page=100&page=1" \
             > "$RUNNER_TEMP/commit-pulls.json"
+          jq '{
+            count: length,
+            first: (
+              .[0] // null |
+              if . == null then null else {
+                number,
+                state,
+                merged_at,
+                merge_commit_sha,
+                base_repository: .base.repo.full_name
+              } end
+            )
+          }' "$RUNNER_TEMP/commit-pulls.json"
           jq -e '
             length > 0 and
             any(
