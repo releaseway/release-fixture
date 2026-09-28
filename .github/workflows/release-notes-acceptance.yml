@@ -273,6 +273,27 @@ jobs:
             echo "direct=$direct"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Assert commit-to-PR provider fixture
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          commit="$(jq -r '.prOnly.pullRequests[] | select(.number == 1) | .landing' .github/release-notes-fixture.json)"
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/$GITHUB_REPOSITORY/commits/$commit/pulls?per_page=100&page=1" \
+            > "$RUNNER_TEMP/commit-pulls.json"
+          jq -e '
+            length > 0 and
+            any(
+              .number == 1 and
+              (.merged_at | type) == "string" and
+              (.merge_commit_sha | type) == "string" and
+              .base.repo.full_name == "releaseway/release-fixture"
+            )
+          ' "$RUNNER_TEMP/commit-pulls.json" >/dev/null
+
       - name: Write PR-only range config
         id: pr_config
         env:
