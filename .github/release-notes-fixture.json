@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "baseline": "3173e104aa3ee4a44709f3606665ea8b1aed1352",
+  "prOnly": {
+    "tag": "notes-pr-v1.0.0",
+    "target": "6d56b03eb3602f95e15d82f1a9ec3a163ebe73c8",
+    "pullRequests": [
+      {
+        "number": 1,
+        "method": "merge",
+        "landing": "cd69119e4e67b970c7380ddb73ffcf13a97ee834",
+        "category": "features",
+        "breaking": false
+      },
+      {
+        "number": 2,
+        "method": "squash",
+        "landing": "76d4ba13e94f44d1a517abf6310ea5b2d9179426",
+        "category": "fixes",
+        "breaking": false
+      },
+      {
+        "number": 3,
+        "method": "rebase",
+        "landing": "6d56b03eb3602f95e15d82f1a9ec3a163ebe73c8",
+        "category": "documentation",
+        "breaking": true,
+        "label": "documentation"
+      }
+    ]
+  },
+  "withDirectCommit": {
+    "tag": "notes-pr-v1.0.1",
+    "directCommit": null
+  }
+}
