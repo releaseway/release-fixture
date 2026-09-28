@@ -31,6 +31,7 @@
   },
   "withDirectCommit": {
     "tag": "notes-pr-v1.0.1",
-    "directCommit": null
+    "directCommit": "d71b97a86dca263100a34140e8095198d598ec2e",
+    "target": "d71b97a86dca263100a34140e8095198d598ec2e"
   }
 }
