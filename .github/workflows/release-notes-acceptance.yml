@@ -1,0 +1,373 @@
+name: release notes acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      action-ref:
+        description: Full releaseway/actions candidate commit SHA.
+        required: true
+        type: string
+      suite:
+        description: Acceptance suite to run.
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - publish
+          - all
+      publish-tag:
+        description: Existing notes-acceptance-* fixture tag for publish suite.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    if: ${{ inputs.suite == 'preview' || inputs.suite == 'all' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Validate candidate SHA
+        env:
+          ACTION_REF: ${{ inputs.action-ref }}
+        run: |
+          set -euo pipefail
+          [[ "$ACTION_REF" =~ ^[0-9a-fA-F]{40}$ ]] || {
+            echo "action-ref must be a full 40-character commit SHA" >&2
+            exit 1
+          }
+
+      - name: Checkout fixture
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Checkout candidate action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/actions
+          ref: ${{ inputs.action-ref }}
+          path: release-action
+          persist-credentials: false
+
+      - name: Resolve stable fixture
+        id: stable
+        run: |
+          set -euo pipefail
+          {
+            echo "tag=v0.1.2"
+            echo "commit=$(git rev-parse 'v0.1.2^{commit}')"
+            echo "base=$(git rev-parse 'v0.1.1^{commit}')"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Snapshot stable release
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v0.1.2"             --jq '[.id,.tag_name,.name,.body,.draft,.prerelease,.immutable,.assets|map([.name,.state,.digest])]'             > "$RUNNER_TEMP/stable-before.json"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Preview standard notes
+        id: standard
+        uses: ./release-action
+        with:
+          tag: ${{ steps.stable.outputs.tag }}
+          commit: ${{ steps.stable.outputs.commit }}
+          notes-preview: "true"
+
+      - name: Assert standard notes
+        env:
+          REPORT: ${{ steps.standard.outputs.notes-report }}
+          TARGET: ${{ steps.stable.outputs.commit }}
+          BASE: ${{ steps.stable.outputs.base }}
+        run: |
+          set -euo pipefail
+          test "$(jq -r '.version' "$REPORT")" = "1"
+          test "$(jq -r '.range.targetTag' "$REPORT")" = "v0.1.2"
+          test "$(jq -r '.range.targetSha' "$REPORT")" = "$TARGET"
+          test "$(jq -r '.range.baseTag' "$REPORT")" = "v0.1.1"
+          test "$(jq -r '.range.baseSha' "$REPORT")" = "$BASE"
+          test "$(jq -r '.included | length' "$REPORT")" = "1"
+          test "$(jq -r '.included[0].id' "$REPORT")" = "commit:$TARGET"
+          test "${{ steps.standard.outputs.state }}" = "preview"
+          test "${{ steps.standard.outputs.notes-state }}" = "prepared"
+
+      - name: Resolve unpublished-tag fixture
+        id: unpublished
+        run: |
+          set -euo pipefail
+          {
+            echo "tag=v1.1.0"
+            echo "commit=$(git rev-parse 'v1.1.0^{commit}')"
+            echo "previous=$(git rev-parse 'v1.0.0^{commit}')"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Preview automatic published-release range
+        id: auto
+        uses: ./release-action
+        with:
+          tag: ${{ steps.unpublished.outputs.tag }}
+          commit: ${{ steps.unpublished.outputs.commit }}
+          notes-preview: "true"
+
+      - name: Assert unpublished tag is not an automatic release base
+        env:
+          REPORT: ${{ steps.auto.outputs.notes-report }}
+        run: |
+          set -euo pipefail
+          test "$(jq -r '.range.targetTag' "$REPORT")" = "v1.1.0"
+          test "$(jq -r '.range.baseTag // "null"' "$REPORT")" = "null"
+          test "$(jq -r '.range.firstRelease' "$REPORT")" = "true"
+
+      - name: Write previous-tag config
+        id: previous_config
+        run: |
+          set -euo pipefail
+          path="$RUNNER_TEMP/previous-tag.yml"
+          cat > "$path" <<'YAML'
+          version: 1
+          notes:
+            range:
+              strategy: previous-tag
+          YAML
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      - name: Preview explicit previous-tag strategy
+        id: previous
+        uses: ./release-action
+        with:
+          tag: ${{ steps.unpublished.outputs.tag }}
+          commit: ${{ steps.unpublished.outputs.commit }}
+          notes-preview: "true"
+          notes-config: ${{ steps.previous_config.outputs.path }}
+
+      - name: Assert previous-tag range
+        env:
+          REPORT: ${{ steps.previous.outputs.notes-report }}
+          PREVIOUS: ${{ steps.unpublished.outputs.previous }}
+        run: |
+          set -euo pipefail
+          test "$(jq -r '.range.baseTag' "$REPORT")" = "v1.0.0"
+          test "$(jq -r '.range.baseSha' "$REPORT")" = "$PREVIOUS"
+
+      - name: Write native config
+        id: native_config
+        run: |
+          set -euo pipefail
+          path="$RUNNER_TEMP/native.yml"
+          cat > "$path" <<'YAML'
+          version: 1
+          notes:
+            github:
+              previous-tag: v0.1.1
+          YAML
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      - name: Preview GitHub-native notes
+        id: native
+        uses: ./release-action
+        with:
+          tag: ${{ steps.stable.outputs.tag }}
+          commit: ${{ steps.stable.outputs.commit }}
+          notes: github
+          notes-config: ${{ steps.native_config.outputs.path }}
+          notes-preview: "true"
+
+      - name: Assert GitHub-native notes
+        env:
+          REPORT: ${{ steps.native.outputs.notes-report }}
+          NOTES: ${{ steps.native.outputs.notes-path }}
+        run: |
+          set -euo pipefail
+          test "$(jq -r '.preset' "$REPORT")" = "github"
+          test "$(jq -r '.source' "$REPORT")" = "github"
+          test "$(jq -r '.github.previousTag' "$REPORT")" = "v0.1.1"
+          test -s "$NOTES"
+
+      - name: Verify preview did not mutate stable release
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v0.1.2"             --jq '[.id,.tag_name,.name,.body,.draft,.prerelease,.immutable,.assets|map([.name,.state,.digest])]'             > "$RUNNER_TEMP/stable-after.json"
+          cmp "$RUNNER_TEMP/stable-before.json" "$RUNNER_TEMP/stable-after.json"
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/v1.1.0" >/dev/null 2>&1; then
+            echo "preview unexpectedly created a v1.1.0 release" >&2
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Upload preview evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-notes-preview-${{ inputs.action-ref }}
+          path: |
+            ${{ steps.standard.outputs.notes-path }}
+            ${{ steps.standard.outputs.notes-report }}
+            ${{ steps.auto.outputs.notes-path }}
+            ${{ steps.auto.outputs.notes-report }}
+            ${{ steps.previous.outputs.notes-path }}
+            ${{ steps.previous.outputs.notes-report }}
+            ${{ steps.native.outputs.notes-path }}
+            ${{ steps.native.outputs.notes-report }}
+          if-no-files-found: error
+
+  publish:
+    if: ${{ inputs.suite == 'publish' || inputs.suite == 'all' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Validate inputs
+        env:
+          ACTION_REF: ${{ inputs.action-ref }}
+          TAG: ${{ inputs.publish-tag }}
+        run: |
+          set -euo pipefail
+          [[ "$ACTION_REF" =~ ^[0-9a-fA-F]{40}$ ]] || {
+            echo "action-ref must be a full 40-character commit SHA" >&2
+            exit 1
+          }
+          [[ "$TAG" =~ ^notes-acceptance-v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]] || {
+            echo "publish-tag must use notes-acceptance-vX.Y.Z-rc.N" >&2
+            exit 1
+          }
+
+      - name: Checkout fixture
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Checkout candidate action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/actions
+          ref: ${{ inputs.action-ref }}
+          path: release-action
+          persist-credentials: false
+
+      - name: Resolve acceptance tag
+        id: release
+        env:
+          TAG: ${{ inputs.publish-tag }}
+        run: |
+          set -euo pipefail
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          {
+            echo "tag=$TAG"
+            echo "commit=$(git rev-parse "$TAG^{commit}")"
+            echo "version=${TAG#notes-acceptance-v}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build deterministic fixture assets
+        run: python3 scripts/build-fixtures.py "${{ steps.release.outputs.version }}"
+
+      - name: Preview publication notes
+        id: preview
+        uses: ./release-action
+        with:
+          tag: ${{ steps.release.outputs.tag }}
+          commit: ${{ steps.release.outputs.commit }}
+          notes-preview: "true"
+          prerelease: "true"
+          latest: "false"
+
+      - name: Publish immutable acceptance release
+        id: publish
+        uses: ./release-action
+        with:
+          tag: ${{ steps.release.outputs.tag }}
+          commit: ${{ steps.release.outputs.commit }}
+          assets: dist/release-fixture_*.tar.gz
+          prerelease: "true"
+          latest: "false"
+
+      - name: Rerun identical publication
+        id: rerun
+        uses: ./release-action
+        with:
+          tag: ${{ steps.release.outputs.tag }}
+          commit: ${{ steps.release.outputs.commit }}
+          assets: dist/release-fixture_*.tar.gz
+          prerelease: "true"
+          latest: "false"
+
+      - name: Verify published notes explicitly
+        id: verify
+        uses: ./release-action
+        with:
+          tag: ${{ steps.release.outputs.tag }}
+          commit: ${{ steps.release.outputs.commit }}
+          assets: dist/release-fixture_*.tar.gz
+          notes-existing: verify
+          prerelease: "true"
+          latest: "false"
+
+      - name: Assert publication state
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          COMMIT: ${{ steps.release.outputs.commit }}
+          PREVIEW: ${{ steps.preview.outputs.notes-path }}
+          RELEASE_URL: ${{ steps.publish.outputs.release-url }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "${{ steps.publish.outputs.state }}" = "created"
+          test "${{ steps.publish.outputs.notes-state }}" = "verified"
+          test "${{ steps.rerun.outputs.state }}" = "existing"
+          test "${{ steps.rerun.outputs.notes-state }}" = "preserved"
+          test "${{ steps.verify.outputs.state }}" = "existing"
+          test "${{ steps.verify.outputs.notes-state }}" = "verified"
+          test -n "$RELEASE_URL"
+
+          remote_tag="$(git ls-remote origin "refs/tags/$TAG^{}" | awk '{print $1}')"
+          if [ -z "$remote_tag" ]; then
+            remote_tag="$(git ls-remote origin "refs/tags/$TAG" | awk '{print $1}')"
+          fi
+          test "$remote_tag" = "$COMMIT"
+
+          release_json="$RUNNER_TEMP/release.json"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > "$release_json"
+          test "$(jq -r '.draft' "$release_json")" = "false"
+          test "$(jq -r '.prerelease' "$release_json")" = "true"
+          test "$(jq -r '.immutable' "$release_json")" = "true"
+
+          python3 - "$PREVIEW" "$release_json" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          preview = Path(sys.argv[1]).read_text()
+          release = json.loads(Path(sys.argv[2]).read_text())
+          assert release.get("body", "") == preview
+          names = sorted(asset["name"] for asset in release["assets"])
+          assert names == [
+              "release-fixture_linux_arm64.tar.gz",
+              "release-fixture_linux_x86_64.tar.gz",
+              "release-fixture_macos_arm64.tar.gz",
+              "release-fixture_macos_x86_64.tar.gz",
+          ]
+          for asset in release["assets"]:
+              assert asset["state"] == "uploaded"
+              assert asset.get("digest", "").startswith("sha256:")
+          PY
+
+      - name: Upload publication evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-notes-publish-${{ inputs.action-ref }}-${{ inputs.publish-tag }}
+          path: |
+            ${{ steps.preview.outputs.notes-path }}
+            ${{ steps.preview.outputs.notes-report }}
+            ${{ steps.publish.outputs.notes-path }}
+            ${{ steps.publish.outputs.notes-report }}
+            ${{ steps.rerun.outputs.notes-path }}
+            ${{ steps.rerun.outputs.notes-report }}
+            ${{ steps.verify.outputs.notes-path }}
+            ${{ steps.verify.outputs.notes-report }}
+          if-no-files-found: error
