@@ -14,6 +14,7 @@ on:
         type: choice
         options:
           - preview
+          - pr
           - publish
           - all
       publish-tag:
@@ -214,6 +215,188 @@ jobs:
             ${{ steps.previous.outputs.notes-report }}
             ${{ steps.native.outputs.notes-path }}
             ${{ steps.native.outputs.notes-report }}
+          if-no-files-found: error
+
+
+  pr:
+    if: ${{ inputs.suite == 'pr' || inputs.suite == 'all' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Validate candidate SHA
+        env:
+          ACTION_REF: ${{ inputs.action-ref }}
+        run: |
+          set -euo pipefail
+          [[ "$ACTION_REF" =~ ^[0-9a-fA-F]{40}$ ]] || {
+            echo "action-ref must be a full 40-character commit SHA" >&2
+            exit 1
+          }
+
+      - name: Checkout fixture
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Checkout candidate action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/actions
+          ref: ${{ inputs.action-ref }}
+          path: release-action
+          persist-credentials: false
+
+      - name: Resolve PR fixtures
+        id: fixture
+        run: |
+          set -euo pipefail
+          manifest=.github/release-notes-fixture.json
+          baseline="$(jq -r '.baseline' "$manifest")"
+          pr_tag="$(jq -r '.prOnly.tag' "$manifest")"
+          pr_target="$(jq -r '.prOnly.target' "$manifest")"
+          direct_tag="$(jq -r '.withDirectCommit.tag' "$manifest")"
+          direct="$(jq -r '.withDirectCommit.directCommit' "$manifest")"
+          direct_target="$(jq -r '.withDirectCommit.target' "$manifest")"
+
+          test "$(git rev-parse "$pr_tag^{commit}")" = "$pr_target"
+          test "$(git rev-parse "$direct_tag^{commit}")" = "$direct_target"
+          test "$direct" = "$direct_target"
+
+          {
+            echo "baseline=$baseline"
+            echo "pr-tag=$pr_tag"
+            echo "pr-target=$pr_target"
+            echo "direct-tag=$direct_tag"
+            echo "direct=$direct"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write PR-only range config
+        id: pr_config
+        env:
+          BASELINE: ${{ steps.fixture.outputs.baseline }}
+        run: |
+          set -euo pipefail
+          path="$RUNNER_TEMP/pr.yml"
+          cat > "$path" <<YAML
+          version: 1
+          notes:
+            range:
+              from:
+                commit: $BASELINE
+          YAML
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      - name: Preview verified PR-only notes
+        id: pr_only
+        uses: ./release-action
+        with:
+          tag: ${{ steps.fixture.outputs.pr-tag }}
+          commit: ${{ steps.fixture.outputs.pr-target }}
+          notes: pull-requests
+          notes-config: ${{ steps.pr_config.outputs.path }}
+          notes-preview: "true"
+
+      - name: Assert merge, squash, rebase and precedence
+        env:
+          REPORT: ${{ steps.pr_only.outputs.notes-report }}
+        run: |
+          set -euo pipefail
+          jq -e '.source == "pull-requests"' "$REPORT" >/dev/null
+          jq -e '([.included[].id] | sort) == (["pull-request:1","pull-request:2","pull-request:3"] | sort)' "$REPORT" >/dev/null
+          jq -e '.included[] | select(.id == "pull-request:1") | .category == "features" and .breaking == false' "$REPORT" >/dev/null
+          jq -e '.included[] | select(.id == "pull-request:2") | .category == "fixes" and .breaking == false' "$REPORT" >/dev/null
+          jq -e '.included[] | select(.id == "pull-request:3") | .category == "documentation" and .breaking == true' "$REPORT" >/dev/null
+
+      - name: Verify uncovered commit fails by default
+        id: uncovered
+        continue-on-error: true
+        uses: ./release-action
+        with:
+          tag: ${{ steps.fixture.outputs.direct-tag }}
+          commit: ${{ steps.fixture.outputs.direct }}
+          notes: pull-requests
+          notes-config: ${{ steps.pr_config.outputs.path }}
+          notes-preview: "true"
+
+      - name: Assert uncovered default failure
+        run: |
+          set -euo pipefail
+          test "${{ steps.uncovered.outcome }}" = "failure"
+
+      - name: Write PR omit config
+        id: omit_config
+        env:
+          BASELINE: ${{ steps.fixture.outputs.baseline }}
+        run: |
+          set -euo pipefail
+          path="$RUNNER_TEMP/pr-omit.yml"
+          cat > "$path" <<YAML
+          version: 1
+          notes:
+            range:
+              from:
+                commit: $BASELINE
+            unmatched: omit
+          YAML
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      - name: Preview PR-only notes with visible omission
+        id: omit
+        uses: ./release-action
+        with:
+          tag: ${{ steps.fixture.outputs.direct-tag }}
+          commit: ${{ steps.fixture.outputs.direct }}
+          notes: pull-requests
+          notes-config: ${{ steps.omit_config.outputs.path }}
+          notes-preview: "true"
+
+      - name: Assert visible omission
+        env:
+          REPORT: ${{ steps.omit.outputs.notes-report }}
+          NOTES: ${{ steps.omit.outputs.notes-path }}
+          DIRECT: ${{ steps.fixture.outputs.direct }}
+        run: |
+          set -euo pipefail
+          grep -F '> **Note:** 1 released commit(s) were omitted because they were not associated with a verified pull request.' "$NOTES"
+          jq -e --arg direct "$DIRECT" '.diagnostics | any(contains($direct))' "$REPORT" >/dev/null
+          jq -e '([.included[].id] | sort) == (["pull-request:1","pull-request:2","pull-request:3"] | sort)' "$REPORT" >/dev/null
+
+      - name: Preview hybrid notes
+        id: hybrid
+        uses: ./release-action
+        with:
+          tag: ${{ steps.fixture.outputs.direct-tag }}
+          commit: ${{ steps.fixture.outputs.direct }}
+          notes: hybrid
+          notes-config: ${{ steps.pr_config.outputs.path }}
+          notes-preview: "true"
+
+      - name: Assert hybrid coverage has no duplicate fallback
+        env:
+          REPORT: ${{ steps.hybrid.outputs.notes-report }}
+          DIRECT: ${{ steps.fixture.outputs.direct }}
+        run: |
+          set -euo pipefail
+          jq -e --arg direct "$DIRECT" '
+            ([.included[].id] | sort) ==
+            (["pull-request:1","pull-request:2","pull-request:3",("commit:" + $direct)] | sort)
+          ' "$REPORT" >/dev/null
+          test "$(jq -r --arg direct "$DIRECT" '[.included[] | select(.id == ("commit:" + $direct))] | length' "$REPORT")" = "1"
+
+      - name: Upload PR acceptance evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-notes-pr-${{ inputs.action-ref }}
+          path: |
+            ${{ steps.pr_only.outputs.notes-path }}
+            ${{ steps.pr_only.outputs.notes-report }}
+            ${{ steps.omit.outputs.notes-path }}
+            ${{ steps.omit.outputs.notes-report }}
+            ${{ steps.hybrid.outputs.notes-path }}
+            ${{ steps.hybrid.outputs.notes-report }}
           if-no-files-found: error
 
   publish:
