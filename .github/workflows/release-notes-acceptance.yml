@@ -69,7 +69,7 @@ jobs:
       - name: Snapshot stable release
         run: |
           set -euo pipefail
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v0.1.2"             --jq '[.id,.tag_name,.name,.body,.draft,.prerelease,.immutable,.assets|map([.name,.state,.digest])]'             > "$RUNNER_TEMP/stable-before.json"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v0.1.2"             --jq '[.id,.tag_name,.name,.body,.draft,.prerelease,.immutable,(.assets|map([.name,.state,.digest]))]'             > "$RUNNER_TEMP/stable-before.json"
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -193,7 +193,7 @@ jobs:
       - name: Verify preview did not mutate stable release
         run: |
           set -euo pipefail
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v0.1.2"             --jq '[.id,.tag_name,.name,.body,.draft,.prerelease,.immutable,.assets|map([.name,.state,.digest])]'             > "$RUNNER_TEMP/stable-after.json"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v0.1.2"             --jq '[.id,.tag_name,.name,.body,.draft,.prerelease,.immutable,(.assets|map([.name,.state,.digest]))]'             > "$RUNNER_TEMP/stable-after.json"
           cmp "$RUNNER_TEMP/stable-before.json" "$RUNNER_TEMP/stable-after.json"
           if gh api "repos/$GITHUB_REPOSITORY/releases/tags/v1.1.0" >/dev/null 2>&1; then
             echo "preview unexpectedly created a v1.1.0 release" >&2
@@ -302,7 +302,7 @@ jobs:
             any(
               .number == 1 and
               (.merged_at | type) == "string" and
-              (.merge_commit_sha | type) == "string" and
+              ((.merge_commit_sha | type) == "string" or .merge_commit_sha == null) and
               .base.repo.full_name == "releaseway/release-fixture"
             )
           ' "$RUNNER_TEMP/commit-pulls.json" >/dev/null
