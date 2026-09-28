@@ -110,20 +110,17 @@ jobs:
 
       - name: Preview automatic published-release range
         id: auto
+        continue-on-error: true
         uses: ./release-action
         with:
           tag: ${{ steps.unpublished.outputs.tag }}
           commit: ${{ steps.unpublished.outputs.commit }}
           notes-preview: "true"
 
-      - name: Assert unpublished tag is not an automatic release base
-        env:
-          REPORT: ${{ steps.auto.outputs.notes-report }}
+      - name: Assert automatic range rejects off-ancestry releases
         run: |
           set -euo pipefail
-          test "$(jq -r '.range.targetTag' "$REPORT")" = "v1.1.0"
-          test "$(jq -r '.range.baseTag // "null"' "$REPORT")" = "null"
-          test "$(jq -r '.range.firstRelease' "$REPORT")" = "true"
+          test "${{ steps.auto.outcome }}" = "failure"
 
       - name: Write previous-tag config
         id: previous_config
