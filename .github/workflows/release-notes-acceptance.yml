@@ -527,6 +527,7 @@ jobs:
           TAG: ${{ steps.release.outputs.tag }}
           COMMIT: ${{ steps.release.outputs.commit }}
           PREVIEW: ${{ steps.preview.outputs.notes-path }}
+          PREVIEW_REPORT: ${{ steps.preview.outputs.notes-report }}
           RELEASE_URL: ${{ steps.publish.outputs.release-url }}
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -544,6 +545,14 @@ jobs:
             remote_tag="$(git ls-remote origin "refs/tags/$TAG" | awk '{print $1}')"
           fi
           test "$remote_tag" = "$COMMIT"
+
+          rc_number="${TAG##*.}"
+          if [ "$rc_number" -gt 1 ]; then
+            previous_tag="${TAG%.*}.$((rc_number - 1))"
+            if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$previous_tag" >/dev/null 2>&1; then
+              test "$(jq -r '.range.baseTag // ""' "$PREVIEW_REPORT")" = "$previous_tag"
+            fi
+          fi
 
           release_json="$RUNNER_TEMP/release.json"
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > "$release_json"
