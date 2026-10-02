@@ -3,6 +3,11 @@ name: Homebrew public API acceptance
 on:
   workflow_dispatch:
     inputs:
+      automation-ref:
+        description: Full Homebrew candidate SHA matching the four committed workflow pins
+        required: true
+        default: 4bbfa6aafc92a6cb8e823a51d54a6573237e0a76
+        type: string
       tag:
         description: Published release-fixture tag to validate and publish to the fixture tap.
         required: true
@@ -40,6 +45,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Verify candidate workflow pins
+        env:
+          AUTOMATION_REF: ${{ inputs.automation-ref }}
+        run: python3 scripts/verify-homebrew-candidate.py
+
       - name: Resolve source identity
         id: source
         env:
@@ -67,14 +77,14 @@ jobs:
 
   check-source:
     needs: resolve
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@c035d14050bca1e2028a6368823797d36c9cdbc5 # v0.1.0
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@4bbfa6aafc92a6cb8e823a51d54a6573237e0a76
     with:
       tap-repository: ${{ inputs.tap-repository }}
       spec-path: .github/homebrew/source-formula.yml
 
   check-release:
     needs: resolve
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@c035d14050bca1e2028a6368823797d36c9cdbc5 # v0.1.0
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@4bbfa6aafc92a6cb8e823a51d54a6573237e0a76
     with:
       tap-repository: ${{ inputs.tap-repository }}
       spec-path: .github/homebrew/formula.yml
@@ -83,7 +93,7 @@ jobs:
     needs:
       - resolve
       - check-source
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@c035d14050bca1e2028a6368823797d36c9cdbc5 # v0.1.0
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@4bbfa6aafc92a6cb8e823a51d54a6573237e0a76
     with:
       commit: ${{ needs.resolve.outputs.commit }}
       version: ${{ needs.resolve.outputs.version }}
@@ -96,7 +106,7 @@ jobs:
     needs:
       - resolve
       - check-release
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@c035d14050bca1e2028a6368823797d36c9cdbc5 # v0.1.0
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@4bbfa6aafc92a6cb8e823a51d54a6573237e0a76
     with:
       commit: ${{ needs.resolve.outputs.commit }}
       version: ${{ needs.resolve.outputs.version }}
@@ -155,3 +165,27 @@ jobs:
           test -f tap/Formula/release-fixture.rb
           grep -Fq 'class ReleaseFixture < Formula' tap/Formula/release-fixture.rb
           grep -Fq "/releases/download/v$VERSION/" tap/Formula/release-fixture.rb
+
+      - name: Record candidate acceptance evidence
+        env:
+          AUTOMATION_REF: ${{ inputs.automation-ref }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          env = os.environ
+          evidence = dict(schema=1, candidate_repository='releaseway/homebrew-actions', candidate_sha=env['AUTOMATION_REF'].lower(),
+                          fixture_repository=env['GITHUB_REPOSITORY'], fixture_commit=env['GITHUB_SHA'],
+                          run_id=int(env['GITHUB_RUN_ID']), run_attempt=int(env['GITHUB_RUN_ATTEMPT']),
+                          workflow='homebrew-acceptance.yml', scenario='homebrew-public', state='verified', version=env['VERSION'])
+          Path('acceptance.json').write_text(json.dumps(evidence, indent=2) + '\n')
+          PY
+
+      - name: Upload candidate acceptance evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: releaseway-acceptance-${{ github.run_attempt }}
+          path: acceptance.json
+          retention-days: 30
+          if-no-files-found: error

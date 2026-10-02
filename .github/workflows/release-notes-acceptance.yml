@@ -56,6 +56,11 @@ jobs:
           path: release-action
           persist-credentials: false
 
+      - name: Verify checked-out candidate identity
+        env:
+          ACTION_REF: ${{ inputs.action-ref }}
+        run: test "$(git -C release-action rev-parse HEAD)" = "${ACTION_REF,,}"
+
       - name: Resolve stable fixture
         id: stable
         run: |
@@ -245,6 +250,11 @@ jobs:
           ref: ${{ inputs.action-ref }}
           path: release-action
           persist-credentials: false
+
+      - name: Verify checked-out candidate identity
+        env:
+          ACTION_REF: ${{ inputs.action-ref }}
+        run: test "$(git -C release-action rev-parse HEAD)" = "${ACTION_REF,,}"
 
       - name: Resolve PR fixtures
         id: fixture
@@ -465,6 +475,11 @@ jobs:
           path: release-action
           persist-credentials: false
 
+      - name: Verify checked-out candidate identity
+        env:
+          ACTION_REF: ${{ inputs.action-ref }}
+        run: test "$(git -C release-action rev-parse HEAD)" = "${ACTION_REF,,}"
+
       - name: Resolve acceptance tag
         id: release
         env:
@@ -593,4 +608,32 @@ jobs:
             ${{ steps.rerun.outputs.notes-report }}
             ${{ steps.verify.outputs.notes-path }}
             ${{ steps.verify.outputs.notes-report }}
+          if-no-files-found: error
+
+  acceptance-evidence:
+    if: inputs.suite == 'all'
+    needs: [preview, pr, publish]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Record complete candidate acceptance
+        env:
+          ACTION_REF: ${{ inputs.action-ref }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          env = os.environ
+          evidence = dict(schema=1, candidate_repository='releaseway/actions', candidate_sha=env['ACTION_REF'].lower(),
+                          fixture_repository=env['GITHUB_REPOSITORY'], fixture_commit=env['GITHUB_SHA'],
+                          run_id=int(env['GITHUB_RUN_ID']), run_attempt=int(env['GITHUB_RUN_ATTEMPT']),
+                          workflow='release-notes-acceptance.yml', scenario='actions-all', state='verified')
+          Path('acceptance.json').write_text(json.dumps(evidence, indent=2) + '\n')
+          PY
+
+      - name: Upload candidate acceptance evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: releaseway-acceptance-${{ github.run_attempt }}
+          path: acceptance.json
+          retention-days: 30
           if-no-files-found: error

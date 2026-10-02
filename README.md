@@ -51,6 +51,56 @@ temporary; its repository and credential are removed after acceptance.
 
 ```sh
 python3 test/fixtures.py
+python3 test/candidates.py
 ```
 
 CI also lints all fixture workflows.
+
+## Candidate release readiness
+
+Each action repository's `release.yml` requires an existing stable `tag` and
+`acceptance-runs` containing comma-separated fixture run IDs. It checks the latest
+push CI at the tag's exact SHA and all matching acceptance before publication.
+
+| Candidate | Required CI | Required acceptance |
+| --- | --- | --- |
+| `releaseway/actions` | `test.yml` | `release-notes-acceptance.yml`, `suite=all` |
+| `releaseway/npm-actions` | `check.yml` including platform matrix | npm fixture `publish.yml` staged + `direct.yml` fresh published; at least one `version-source=git-tag` |
+| `releaseway/homebrew-actions` | `test.yml` | `homebrew-acceptance.yml` source + release Formulae |
+
+For actions, supply full `action-ref` and an existing `notes-acceptance-*`
+`publish-tag`. All three suites must succeed. Individual suites remain diagnostic.
+
+For Homebrew, reusable workflow refs must be literal. Before committing the fixture
+candidate, run `python3 scripts/pin-homebrew-candidate.py <full-candidate-sha>`.
+Review the four changed refs, prepare the corresponding fixture tag and immutable
+Release, then dispatch from that fixture tag with matching `automation-ref` and
+`tag`. A mismatch fails before tap writes. Internal scripts/rendering come from the
+pinned automation checkout. Reruns can report unchanged Formulae; rollback uses the
+automation's explicit `allow-downgrade` policy.
+
+Follow the [npm candidate guide](https://github.com/releaseway/npm-actions-fixture#candidate-acceptance)
+for fresh versions and tag-derived prereleases. Stage success proves submission;
+direct success proves matching live SHA-512 and installed Node 22/24/26 consumers.
+
+Complete successful runs upload `releaseway-acceptance-<run_attempt>` containing one
+`acceptance.json`, retained for 30 days. Readiness compares provider repository,
+workflow, fixture commit, current attempt and success with the JSON and candidate
+SHA. Expired/missing artifacts, another SHA, partial suites and failed runs fail.
+Preserve run IDs; rerun acceptance when evidence expires.
+
+Release workflows request `actions: read` plus existing `contents: write`. If their
+token cannot download cross-repository artifacts, configure optional
+`RELEASEWAY_EVIDENCE_TOKEN` with Actions read access to candidate and fixture repos;
+it is used only by the read-only gate. Run the checker locally from an action repo:
+
+```sh
+python3 scripts/verify-release-evidence.py \
+  --repository releaseway/npm-actions --candidate <full-candidate-sha> \
+  --acceptance-runs <staged-run-id>,<direct-run-id>
+```
+
+Publication is an explicit dispatch. GitHub Releases need fixture `contents: write`;
+npm needs `id-token: write` and its Trusted Publishers; Homebrew writes only to an
+allowlisted fixture tap using its deploy key. Reuse compatible immutable Releases
+and retry against current tap state after conflicts. The checker performs no writes.
