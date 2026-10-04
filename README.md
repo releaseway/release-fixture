@@ -75,6 +75,10 @@ push CI at the tag's exact SHA and all matching acceptance before publication.
 
 For actions, supply full `action-ref` and an existing `notes-acceptance-*`
 `publish-tag`. All three suites must succeed. Individual suites remain diagnostic.
+Set `upload-concurrency` to exercise the candidate's upload limit (default `1`,
+range `1`–`8`). Publication, identical rerun and explicit verification use the
+same value; complete acceptance evidence records it. Candidates accepting this
+input are required when selecting concurrency above `1`.
 
 For Homebrew, reusable workflow refs must be literal. Before committing the fixture
 candidate, run `python3 scripts/pin-homebrew-candidate.py <full-candidate-sha>`.
