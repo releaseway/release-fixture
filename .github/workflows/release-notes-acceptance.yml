@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       action-ref:
-        description: Full releaseway/actions commit SHA; defaults to v0.2.1.
+        description: Full releaseway/actions commit SHA; defaults to v0.3.0.
         required: true
-        default: 22219bebc51a4127c6dffd9e79706f08cdd678dc # v0.2.1
+        default: 31c98fec4bbf03f4e179c2a9b3031a50d771a1d3 # v0.3.0
         type: string
       suite:
         description: Acceptance suite to run.
