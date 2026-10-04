@@ -128,19 +128,18 @@ jobs:
             echo "previous=$(git rev-parse 'v1.0.0^{commit}')"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Preview automatic published-release range
-        id: auto
-        continue-on-error: true
-        uses: ./release-action
-        with:
-          tag: ${{ steps.unpublished.outputs.tag }}
-          commit: ${{ steps.unpublished.outputs.commit }}
-          notes-preview: "true"
-
       - name: Assert automatic range rejects off-ancestry releases
+        id: auto
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ steps.unpublished.outputs.tag }}
+          INPUT_COMMIT: ${{ steps.unpublished.outputs.commit }}
+          INPUT_NOTES_PREVIEW: "true"
         run: |
           set -euo pipefail
-          test "${{ steps.auto.outcome }}" = "failure"
+          python3 scripts/assert-action-failure.py \
+            'eligible prior releases exist but none is on the target first-parent ancestry' \
+            node release-action/dist/main.cjs
 
       - name: Write previous-tag config
         id: previous_config
@@ -368,19 +367,18 @@ jobs:
 
       - name: Verify uncovered commit fails by default
         id: uncovered
-        continue-on-error: true
-        uses: ./release-action
-        with:
-          tag: ${{ steps.fixture.outputs.direct-tag }}
-          commit: ${{ steps.fixture.outputs.direct }}
-          notes: pull-requests
-          notes-config: ${{ steps.pr_config.outputs.path }}
-          notes-preview: "true"
-
-      - name: Assert uncovered default failure
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ steps.fixture.outputs.direct-tag }}
+          INPUT_COMMIT: ${{ steps.fixture.outputs.direct }}
+          INPUT_NOTES: pull-requests
+          INPUT_NOTES_CONFIG: ${{ steps.pr_config.outputs.path }}
+          INPUT_NOTES_PREVIEW: "true"
         run: |
           set -euo pipefail
-          test "${{ steps.uncovered.outcome }}" = "failure"
+          python3 scripts/assert-action-failure.py \
+            'pull-request source has 1 uncovered released commit(s)' \
+            node release-action/dist/main.cjs
 
       - name: Write PR omit config
         id: omit_config
