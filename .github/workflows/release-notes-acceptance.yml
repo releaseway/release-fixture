@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       action-ref:
-        description: Full releaseway/actions commit SHA; defaults to v0.2.1.
+        description: Full releaseway/actions commit SHA; defaults to v0.3.0.
         required: true
-        default: 22219bebc51a4127c6dffd9e79706f08cdd678dc # v0.2.1
+        default: 31c98fec4bbf03f4e179c2a9b3031a50d771a1d3 # v0.3.0
         type: string
       suite:
         description: Acceptance suite to run.
@@ -22,6 +22,20 @@ on:
         description: Existing notes-acceptance-* fixture tag for publish suite.
         required: false
         type: string
+      upload-concurrency:
+        description: Maximum concurrent uploads for publication acceptance.
+        required: true
+        default: "1"
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+          - "4"
+          - "5"
+          - "6"
+          - "7"
+          - "8"
 
 permissions:
   contents: read
@@ -451,6 +465,7 @@ jobs:
         env:
           ACTION_REF: ${{ inputs.action-ref }}
           TAG: ${{ inputs.publish-tag }}
+          UPLOAD_CONCURRENCY: ${{ inputs.upload-concurrency }}
         run: |
           set -euo pipefail
           [[ "$ACTION_REF" =~ ^[0-9a-fA-F]{40}$ ]] || {
@@ -459,6 +474,10 @@ jobs:
           }
           [[ "$TAG" =~ ^notes-acceptance-v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]] || {
             echo "publish-tag must use notes-acceptance-vX.Y.Z-rc.N" >&2
+            exit 1
+          }
+          [[ "$UPLOAD_CONCURRENCY" =~ ^[1-8]$ ]] || {
+            echo "upload-concurrency must be an integer from 1 to 8" >&2
             exit 1
           }
 
@@ -514,6 +533,7 @@ jobs:
           tag: ${{ steps.release.outputs.tag }}
           commit: ${{ steps.release.outputs.commit }}
           assets: dist/release-fixture_*.tar.gz
+          upload-concurrency: ${{ inputs.upload-concurrency }}
           prerelease: "true"
           latest: "false"
 
@@ -524,6 +544,7 @@ jobs:
           tag: ${{ steps.release.outputs.tag }}
           commit: ${{ steps.release.outputs.commit }}
           assets: dist/release-fixture_*.tar.gz
+          upload-concurrency: ${{ inputs.upload-concurrency }}
           prerelease: "true"
           latest: "false"
 
@@ -534,6 +555,7 @@ jobs:
           tag: ${{ steps.release.outputs.tag }}
           commit: ${{ steps.release.outputs.commit }}
           assets: dist/release-fixture_*.tar.gz
+          upload-concurrency: ${{ inputs.upload-concurrency }}
           notes-existing: verify
           prerelease: "true"
           latest: "false"
@@ -619,6 +641,7 @@ jobs:
       - name: Record complete candidate acceptance
         env:
           ACTION_REF: ${{ inputs.action-ref }}
+          UPLOAD_CONCURRENCY: ${{ inputs.upload-concurrency }}
         run: |
           python3 - <<'PY'
           import json, os
@@ -627,7 +650,8 @@ jobs:
           evidence = dict(schema=1, candidate_repository='releaseway/actions', candidate_sha=env['ACTION_REF'].lower(),
                           fixture_repository=env['GITHUB_REPOSITORY'], fixture_commit=env['GITHUB_SHA'],
                           run_id=int(env['GITHUB_RUN_ID']), run_attempt=int(env['GITHUB_RUN_ATTEMPT']),
-                          workflow='release-notes-acceptance.yml', scenario='actions-all', state='verified')
+                          workflow='release-notes-acceptance.yml', scenario='actions-all', state='verified',
+                          upload_concurrency=int(env['UPLOAD_CONCURRENCY']))
           Path('acceptance.json').write_text(json.dumps(evidence, indent=2) + '\n')
           PY
 

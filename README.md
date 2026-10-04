@@ -7,7 +7,7 @@ versioned Git tags, immutable GitHub Releases, release assets, and Homebrew spec
 automation is tested from here through its public interfaces rather than by importing
 implementation files.
 
-Release creation and notes acceptance use `releaseway/actions v0.2.1`; Homebrew
+Release creation and notes acceptance use `releaseway/actions v0.3.0`; Homebrew
 checks and acceptance use `releaseway/homebrew-actions v0.2.0`. Workflow references
 remain pinned to the full release commit SHA. Candidate acceptance can select a
 different SHA through the documented inputs and pinning helper.
@@ -75,6 +75,10 @@ push CI at the tag's exact SHA and all matching acceptance before publication.
 
 For actions, supply full `action-ref` and an existing `notes-acceptance-*`
 `publish-tag`. All three suites must succeed. Individual suites remain diagnostic.
+Set `upload-concurrency` to exercise the candidate's upload limit (default `1`,
+range `1`–`8`). Publication, identical rerun and explicit verification use the
+same value; complete acceptance evidence records it. Candidates accepting this
+input are required when selecting concurrency above `1`.
 
 For Homebrew, reusable workflow refs must be literal. Before committing the fixture
 candidate, run `python3 scripts/pin-homebrew-candidate.py <full-candidate-sha>`.
