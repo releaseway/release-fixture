@@ -1,0 +1,6 @@
+schema: 1
+branch: main
+tag-prefix: v
+initial-version: 1.2.0
+bump: patch
+latest: current-series

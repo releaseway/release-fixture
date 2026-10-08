@@ -7,8 +7,8 @@ versioned Git tags, immutable GitHub Releases, release assets, and Homebrew spec
 automation is tested from here through its public interfaces rather than by importing
 implementation files.
 
-Release creation and notes acceptance use `releaseway/actions v0.3.2`; Homebrew
-checks and acceptance use `releaseway/homebrew-actions v0.3.4`. Workflow references
+Release creation and notes acceptance use `releaseway/actions v0.4.0`; Homebrew
+checks and acceptance use `releaseway/homebrew-actions v0.3.5`. Workflow references
 remain pinned to the full release commit SHA. Candidate acceptance can select a
 different SHA through the documented inputs and pinning helper.
 
