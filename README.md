@@ -14,6 +14,14 @@ different SHA through the documented inputs and pinning helper.
 
 ## Release fixture
 
+Dispatch `release.yml` with `mode=prepare` to calculate the next patch from
+`.github/releaseway.yml`, create the unchanged-tree release commit and tag, and push
+both atomically through Releaseway. The workflow keeps only the deterministic
+product build command and release settings. `mode=resolve` with `tag=vX.Y.Z` verifies
+and publishes an existing tag. Both paths use `latest: current-series`; a failed
+build/publication can rerun preparation and resume the same release. The verified
+`v1.2.8` fixture was generated through this complete preparation/publication flow.
+
 `scripts/build-fixtures.py` produces byte-identical archives for:
 
 - macOS arm64;
