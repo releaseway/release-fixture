@@ -9,13 +9,13 @@ permissions:
 
 jobs:
   check-source:
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@e5fd069ed49099bd03878feab6d366ba123546fd # v0.3.2
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@97bcbaf9872721d038dfbe6c5edcd1760f6a408e # v0.3.3
     with:
       tap-repository: releaseway/homebrew-tap-fixture
       spec-path: .github/homebrew/source-formula.yml
 
   check-release:
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@e5fd069ed49099bd03878feab6d366ba123546fd # v0.3.2
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@97bcbaf9872721d038dfbe6c5edcd1760f6a408e # v0.3.3
     with:
       tap-repository: releaseway/homebrew-tap-fixture
       spec-path: .github/homebrew/formula.yml

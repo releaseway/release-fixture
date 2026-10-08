@@ -8,7 +8,7 @@ automation is tested from here through its public interfaces rather than by impo
 implementation files.
 
 Release creation and notes acceptance use `releaseway/actions v0.3.1`; Homebrew
-checks and acceptance use `releaseway/homebrew-actions v0.3.2`. Workflow references
+checks and acceptance use `releaseway/homebrew-actions v0.3.3`. Workflow references
 remain pinned to the full release commit SHA. Candidate acceptance can select a
 different SHA through the documented inputs and pinning helper.
 
