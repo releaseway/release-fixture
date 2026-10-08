@@ -6,7 +6,7 @@ on:
       automation-ref:
         description: Full Homebrew candidate SHA matching the four committed workflow pins
         required: true
-        default: 4bbfa6aafc92a6cb8e823a51d54a6573237e0a76
+        default: e64441c78495e1511140ae328e5601a448189056
         type: string
       tag:
         description: Published release-fixture tag to validate and publish to the fixture tap.
@@ -77,14 +77,14 @@ jobs:
 
   check-source:
     needs: resolve
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@4bbfa6aafc92a6cb8e823a51d54a6573237e0a76 # v0.2.0
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@e64441c78495e1511140ae328e5601a448189056
     with:
       tap-repository: ${{ inputs.tap-repository }}
       spec-path: .github/homebrew/source-formula.yml
 
   check-release:
     needs: resolve
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@4bbfa6aafc92a6cb8e823a51d54a6573237e0a76 # v0.2.0
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@e64441c78495e1511140ae328e5601a448189056
     with:
       tap-repository: ${{ inputs.tap-repository }}
       spec-path: .github/homebrew/formula.yml
@@ -93,7 +93,7 @@ jobs:
     needs:
       - resolve
       - check-source
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@4bbfa6aafc92a6cb8e823a51d54a6573237e0a76 # v0.2.0
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@e64441c78495e1511140ae328e5601a448189056
     with:
       commit: ${{ needs.resolve.outputs.commit }}
       version: ${{ needs.resolve.outputs.version }}
@@ -106,7 +106,7 @@ jobs:
     needs:
       - resolve
       - check-release
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@4bbfa6aafc92a6cb8e823a51d54a6573237e0a76 # v0.2.0
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@e64441c78495e1511140ae328e5601a448189056
     with:
       commit: ${{ needs.resolve.outputs.commit }}
       version: ${{ needs.resolve.outputs.version }}
@@ -159,10 +159,12 @@ jobs:
           set -euo pipefail
 
           test -f tap/Formula/release-source-fixture.rb
+          grep -Fxq '  version_scheme 1' tap/Formula/release-source-fixture.rb
           grep -Fq 'class ReleaseSourceFixture < Formula' tap/Formula/release-source-fixture.rb
           grep -Fq "/archive/$COMMIT.tar.gz" tap/Formula/release-source-fixture.rb
 
           test -f tap/Formula/release-fixture.rb
+          grep -Fxq '  version_scheme 1' tap/Formula/release-fixture.rb
           grep -Fq 'class ReleaseFixture < Formula' tap/Formula/release-fixture.rb
           grep -Fq "/releases/download/v$VERSION/" tap/Formula/release-fixture.rb
 

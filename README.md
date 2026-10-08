@@ -8,7 +8,7 @@ automation is tested from here through its public interfaces rather than by impo
 implementation files.
 
 Release creation and notes acceptance use `releaseway/actions v0.3.1`; Homebrew
-checks and acceptance use `releaseway/homebrew-actions v0.2.0`. Workflow references
+checks and acceptance use `releaseway/homebrew-actions v0.3.0`. Workflow references
 remain pinned to the full release commit SHA. Candidate acceptance can select a
 different SHA through the documented inputs and pinning helper.
 
@@ -32,6 +32,9 @@ Two specs exercise the public Homebrew workflows:
 
 - `.github/homebrew/source-formula.yml`: source-archive validation;
 - `.github/homebrew/formula.yml`: GitHub Release asset validation and publishing.
+
+Both specs retain `version_scheme: 1`; acceptance verifies the corresponding
+Ruby stanza in both published Formulas.
 
 Run `Homebrew public API acceptance` from the same fixture tag whose immutable GitHub
 Release is being validated, and pass that tag as the workflow input. This keeps the

@@ -2,6 +2,7 @@ name: release-source-fixture
 desc: Deterministic source archive fixture for Homebrew automation integration tests
 homepage: https://github.com/releaseway/release-fixture
 license: MIT
+version_scheme: 1
 
 install: |
   target = bin/"release-source-fixture"
