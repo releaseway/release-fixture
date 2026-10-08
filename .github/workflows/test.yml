@@ -9,13 +9,13 @@ permissions:
 
 jobs:
   check-source:
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@39a8f12c2cbe8b2191809a66421c1f88701b06b3 # v0.3.3
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@25465f48a1ebfa2eb5036e41cd4027fa0a01ae89 # v0.3.4
     with:
       tap-repository: releaseway/homebrew-tap-fixture
       spec-path: .github/homebrew/source-formula.yml
 
   check-release:
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@39a8f12c2cbe8b2191809a66421c1f88701b06b3 # v0.3.3
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@25465f48a1ebfa2eb5036e41cd4027fa0a01ae89 # v0.3.4
     with:
       tap-repository: releaseway/homebrew-tap-fixture
       spec-path: .github/homebrew/formula.yml
@@ -37,9 +37,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.26.x"
           check-latest: true
+          cache: false
       - name: Lint workflows
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12

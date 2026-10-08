@@ -47,7 +47,7 @@ jobs:
 
       - name: Publish fixture release
         id: publish
-        uses: releaseway/actions@c054f2de3448e79e5d854155e701e13ad31a520c # v0.3.1
+        uses: releaseway/actions@0dad8be512eae926535d0ba723f27be44a1bd623 # v0.3.2
         with:
           tag: ${{ steps.release.outputs.tag }}
           commit: ${{ steps.release.outputs.commit }}
