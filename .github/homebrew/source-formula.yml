@@ -17,5 +17,5 @@ install: |
 
 test: |
   ["release-source-fixture", "rw-source-fixture"].each do |command|
-    assert_match "release-source-fixture #{version}", shell_output("#{bin}/#{command}")
+    assert_match "release-source-fixture #{version}", shell_output((bin/command).to_s)
   end
