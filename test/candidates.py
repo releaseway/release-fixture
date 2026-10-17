@@ -37,6 +37,23 @@ class CandidateTests(unittest.TestCase):
         for path in ['homebrew-acceptance.yml', 'release-notes-acceptance.yml']:
             self.assertIn('releaseway-acceptance-${{ github.run_attempt }}', (ROOT / '.github/workflows' / path).read_text())
 
+    def test_candidate_matches_pr_checks_and_pins_both_atomically(self):
+        acceptance = (ROOT / '.github/workflows/homebrew-acceptance.yml').read_text()
+        checks = (ROOT / '.github/workflows/test.yml').read_text()
+        current = re.search(r'uses: releaseway/homebrew-actions/[^@]+@([0-9a-f]{40})', acceptance)[1]
+        verify(current, acceptance, checks)
+        with self.assertRaises(ValueError): verify(current, acceptance, checks.replace(current, 'b' * 40, 1))
+        with tempfile.TemporaryDirectory() as directory:
+            path, check = Path(directory) / 'acceptance.yml', Path(directory) / 'test.yml'
+            path.write_text(acceptance)
+            check.write_text(checks)
+            pin('a' * 40, path, check)
+            verify('a' * 40, path.read_text(), check.read_text())
+            before = path.read_bytes()
+            check.write_text('invalid workflow')
+            with self.assertRaises(ValueError): pin('b' * 40, path, check)
+            self.assertEqual(path.read_bytes(), before)
+
 
 if __name__ == '__main__':
     unittest.main()

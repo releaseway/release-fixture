@@ -4,13 +4,17 @@ from pathlib import Path
 import re
 
 
-def verify(sha, text):
+def verify(sha, text, check_text=None):
     if not re.fullmatch(r'[0-9a-fA-F]{40}', sha):
         raise ValueError('automation-ref must be a full 40-character commit SHA')
     pins = re.findall(r'uses: releaseway/homebrew-actions/\.github/workflows/(?:check|publish)\.yml@([0-9a-fA-F]{40})', text)
     if len(pins) != 4 or any(pin.lower() != sha.lower() for pin in pins):
         raise ValueError('automation-ref must match all four committed reusable-workflow pins')
+    if check_text is not None:
+        checks = re.findall(r'uses: releaseway/homebrew-actions/\.github/workflows/check\.yml@([0-9a-fA-F]{40})', check_text)
+        if len(checks) != 2 or any(pin.lower() != sha.lower() for pin in checks):
+            raise ValueError('automation-ref must match both committed test workflow pins')
 
 
 if __name__ == '__main__':
-    verify(os.environ['AUTOMATION_REF'], Path('.github/workflows/homebrew-acceptance.yml').read_text())
+    verify(os.environ['AUTOMATION_REF'], Path('.github/workflows/homebrew-acceptance.yml').read_text(), Path('.github/workflows/test.yml').read_text())

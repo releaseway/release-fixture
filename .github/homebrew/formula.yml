@@ -13,8 +13,14 @@ distribution:
     linux-arm64: release-fixture_linux_arm64.tar.gz
     linux-x86_64: release-fixture_linux_x86_64.tar.gz
 
+command_aliases:
+  rw-fixture: release-fixture
+  release-fixture-cli: release-fixture
+
 install: |
   bin.install "release-fixture"
 
 test: |
-  assert_match "release-fixture #{version}", shell_output("#{bin}/release-fixture --version")
+  ["release-fixture", "rw-fixture", "release-fixture-cli"].each do |command|
+    assert_match "release-fixture #{version}", shell_output("#{bin}/#{command} --version")
+  end

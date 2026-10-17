@@ -2,6 +2,16 @@
 
 Deterministic product/source fixture for shared release and Homebrew automation.
 
+The Homebrew specs also verify command aliases created by `homebrew-actions`:
+`rw-fixture` and `release-fixture-cli` run the release asset's `release-fixture`,
+and `rw-source-fixture` runs `release-source-fixture`. Assets contain only the
+original executable. Product tests execute every name on the existing native
+validation runners, and acceptance artifacts record the verified aliases.
+
+`scripts/pin-homebrew-candidate.py <full-sha>` updates both PR check pins, all four
+acceptance check/publish pins and the dispatch default together. Candidate identity
+verification rejects mismatched pins before tap publication.
+
 This repository behaves like a small product repository. It owns fixture source,
 versioned Git tags, immutable GitHub Releases, release assets, and Homebrew specs. Shared
 automation is tested from here through its public interfaces rather than by importing

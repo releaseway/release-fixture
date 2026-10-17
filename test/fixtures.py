@@ -48,7 +48,13 @@ def main() -> None:
         ".github/homebrew/source-formula.yml": "release-source-fixture",
     }
     for path, name in specs.items():
-        assert (ROOT / path).read_text().startswith(f"name: {name}\n")
+        text = (ROOT / path).read_text()
+        assert text.startswith(f"name: {name}\n")
+        assert 'command_aliases:' in text
+        expected = ['rw-source-fixture'] if name == 'release-source-fixture' else ['rw-fixture', 'release-fixture-cli']
+        for alias in expected:
+            assert f'  {alias}: {name}' in text
+            assert f'"{alias}"' in text.split('test: |')[1]
 
     for platform in PLATFORMS:
         filename = f"release-fixture_{platform.replace('-', '_')}.tar.gz"

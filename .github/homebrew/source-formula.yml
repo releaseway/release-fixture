@@ -4,6 +4,9 @@ homepage: https://github.com/releaseway/release-fixture
 license: MIT
 version_scheme: 1
 
+command_aliases:
+  rw-source-fixture: release-source-fixture
+
 install: |
   target = bin/"release-source-fixture"
   target.write <<~SH
@@ -13,4 +16,6 @@ install: |
   target.chmod 0755
 
 test: |
-  assert_match "release-source-fixture #{version}", shell_output("#{bin}/release-source-fixture")
+  ["release-source-fixture", "rw-source-fixture"].each do |command|
+    assert_match "release-source-fixture #{version}", shell_output("#{bin}/#{command}")
+  end
