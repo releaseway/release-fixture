@@ -18,7 +18,7 @@ automation is tested from here through its public interfaces rather than by impo
 implementation files.
 
 Release creation and notes acceptance use `releaseway/actions v0.4.1`; Homebrew
-checks and acceptance use `releaseway/homebrew-actions v0.3.5`. Workflow references
+checks and acceptance use `releaseway/homebrew-actions v0.4.0`. Workflow references
 remain pinned to the full release commit SHA. Candidate acceptance can select a
 different SHA through the documented inputs and pinning helper.
 
@@ -30,7 +30,7 @@ both atomically through Releaseway. The workflow keeps only the deterministic
 product build command and release settings. `mode=resolve` with `tag=vX.Y.Z` verifies
 and publishes an existing tag. Both paths use `latest: current-series`; a failed
 build/publication can rerun preparation and resume the same release. The verified
-`v1.2.8` fixture was generated through this complete preparation/publication flow.
+`v1.2.9` fixture was generated through this complete preparation/publication flow.
 
 `scripts/build-fixtures.py` produces byte-identical archives for:
 
@@ -70,8 +70,9 @@ belongs in this repository.
 
 The default destination is `releaseway/homebrew-tap-fixture`. Starter acceptance can
 select `releaseway/homebrew-starter-smoke` with the `STARTER_TAP_DEPLOY_KEY` secret.
-Only these matching test tap/credential pairs are accepted. The smoke tap is
-temporary; its repository and credential are removed after acceptance.
+Only these matching test tap/credential pairs are accepted. Keep the smoke tap
+and its dedicated credential available for repeatable starter acceptance; they
+are separate from the permanent fixture tap and any production repository.
 
 ## Local validation
 
@@ -103,8 +104,8 @@ input are required when selecting concurrency above `1`.
 
 For Homebrew, reusable workflow refs must be literal. Before committing the fixture
 candidate, run `python3 scripts/pin-homebrew-candidate.py <full-candidate-sha>`.
-Review the four changed refs, prepare the corresponding fixture tag and immutable
-Release, then dispatch from that fixture tag with matching `automation-ref` and
+Review the six changed refs and dispatch default, prepare the corresponding
+fixture tag and immutable Release, then dispatch from that fixture tag with matching `automation-ref` and
 `tag`. A mismatch fails before tap writes. Internal scripts/rendering come from the
 pinned automation checkout. Reruns can report unchanged Formulae; rollback uses the
 automation's explicit `allow-downgrade` policy.

@@ -77,14 +77,14 @@ jobs:
 
   check-source:
     needs: resolve
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@5ff7e261e32542dde8902ef16483405c2bf4ca12
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@5ff7e261e32542dde8902ef16483405c2bf4ca12 # v0.4.0
     with:
       tap-repository: ${{ inputs.tap-repository }}
       spec-path: .github/homebrew/source-formula.yml
 
   check-release:
     needs: resolve
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@5ff7e261e32542dde8902ef16483405c2bf4ca12
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@5ff7e261e32542dde8902ef16483405c2bf4ca12 # v0.4.0
     with:
       tap-repository: ${{ inputs.tap-repository }}
       spec-path: .github/homebrew/formula.yml
@@ -93,7 +93,7 @@ jobs:
     needs:
       - resolve
       - check-source
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@5ff7e261e32542dde8902ef16483405c2bf4ca12
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@5ff7e261e32542dde8902ef16483405c2bf4ca12 # v0.4.0
     with:
       commit: ${{ needs.resolve.outputs.commit }}
       version: ${{ needs.resolve.outputs.version }}
@@ -106,7 +106,7 @@ jobs:
     needs:
       - resolve
       - check-release
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@5ff7e261e32542dde8902ef16483405c2bf4ca12
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@5ff7e261e32542dde8902ef16483405c2bf4ca12 # v0.4.0
     with:
       commit: ${{ needs.resolve.outputs.commit }}
       version: ${{ needs.resolve.outputs.version }}
