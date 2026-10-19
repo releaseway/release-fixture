@@ -89,7 +89,19 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
-      - run: npm ci --prefix automation
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 12.14.0
+          package_json_file: automation/package.json
+          run_install: false
+      - name: Install source-probe dependencies
+        shell: bash
+        run: |
+          # Published candidates before the pnpm migration retain their npm lock.
+          if [ ! -f automation/pnpm-lock.yaml ]; then
+            pnpm --dir automation import
+          fi
+          pnpm --dir automation install --frozen-lockfile --ignore-scripts
       - id: distribution
         uses: ./automation/distribute
         with:
@@ -134,7 +146,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@1c0b9237f61ee66f68db880963ec03da46c8a6ed
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@1c0b9237f61ee66f68db880963ec03da46c8a6ed # v0.5.0
     with:
       files: release-fixture_*.tar.gz
   pages-release:
@@ -145,7 +157,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@1c0b9237f61ee66f68db880963ec03da46c8a6ed
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@1c0b9237f61ee66f68db880963ec03da46c8a6ed # v0.5.0
     with:
       tag: ${{ needs.publish.outputs.tag }}
       config: .github/distribution/files.yml
@@ -157,7 +169,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@1c0b9237f61ee66f68db880963ec03da46c8a6ed
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@1c0b9237f61ee66f68db880963ec03da46c8a6ed # v0.5.0
     with:
       artifact-id: ${{ needs.publish.outputs.artifact-id }}
       files: |
