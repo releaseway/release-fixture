@@ -17,7 +17,7 @@ versioned Git tags, immutable GitHub Releases, release assets, and Homebrew spec
 automation is tested from here through its public interfaces rather than by importing
 implementation files.
 
-Release creation and notes acceptance use `releaseway/actions v0.4.1`; Homebrew
+Release creation and notes acceptance use `releaseway/actions v0.5.0`; Homebrew
 checks and acceptance use `releaseway/homebrew-actions v0.4.0`. Workflow references
 remain pinned to the full release commit SHA. Candidate acceptance can select a
 different SHA through the documented inputs and pinning helper.
@@ -30,10 +30,9 @@ macOS and Windows, generated same-run artifacts, and optional real Pages deploym
 Its automation pin is the published actions **v0.5.0** commit
 `1c0b9237f61ee66f68db880963ec03da46c8a6ed`.
 
-This pin is independent of the v0.4.1 release-creation and notes-suite defaults
-above. Notes acceptance can select v0.5.0 with `action-ref`; changing documentation
-does not change those workflow defaults. The release-readiness gate below accepts
-notes evidence, while complete distribution evidence uses its own checker.
+Release creation and notes acceptance use the same v0.5.0 default. Notes acceptance
+can select a different candidate with `action-ref`. The release-readiness gate below
+accepts notes evidence, while complete distribution evidence uses its own checker.
 
 ## Release fixture
 
