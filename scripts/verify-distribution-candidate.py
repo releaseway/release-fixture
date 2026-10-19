@@ -83,6 +83,8 @@ def verify_receipts(candidate, source, run_id, attempt, receipts, require_pages=
                 raise ValueError('hidden fixture not served')
             src = report['source']
             if mode == 'artifact':
+                if r.get('negative404') is not True or r.get('negativeDigest') is not True:
+                    raise ValueError('public served failure probes missing')
                 if src.get('kind') != 'workflow-artifact' or not str(r.get('sourceArtifactId', '')).isdigit() or str(src.get('artifactId')) != r['sourceArtifactId'] or str(src.get('runId')) != str(run_id) or src.get('callerSha') != source or not re.fullmatch(r'sha256:[a-f0-9]{64}', src.get('artifactDigest', '')):
                     raise ValueError('source artifact identity mismatch')
             elif src.get('kind') != 'github-release' or src.get('repository') != 'releaseway/release-fixture':

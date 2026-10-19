@@ -23,7 +23,7 @@ def receipts():
     result=[dict(schema=1,kind='core',candidate=CANDIDATE,sourceCommit=SOURCE,runId=RUN,attempt=ATTEMPT,platform=p,cases=['public-release','cross-repo-read','negative-tamper','rerun','native-script'],report=report())for p in ['Linux','macOS','Windows']]
     for i,mode in enumerate(['latest','release','artifact']):
         r=report('workflow-artifact' if mode=='artifact' else 'github-release',artifact=True)
-        result.append(dict(schema=1,kind='pages',mode=mode,candidate=CANDIDATE,sourceCommit=SOURCE,runId=RUN,attempt=ATTEMPT,report=r,served=True,deploymentId=str(100+i),reportArtifactId=str(200+i),pageUrl='https://releaseway.github.io/release-fixture/',deliveryDigest=r['digest'],sourceArtifactId='9'if mode=='artifact' else ''))
+        result.append(dict(schema=1,kind='pages',mode=mode,candidate=CANDIDATE,sourceCommit=SOURCE,runId=RUN,attempt=ATTEMPT,report=r,served=True,deploymentId=str(100+i),reportArtifactId=str(200+i),pageUrl='https://releaseway.github.io/release-fixture/',deliveryDigest=r['digest'],sourceArtifactId='9'if mode=='artifact' else '',negative404=(mode=='artifact'),negativeDigest=(mode=='artifact')))
     return result
 class DistributionTests(unittest.TestCase):
     def verify(self,items,**kw):return api['verify_receipts'](CANDIDATE,SOURCE,RUN,ATTEMPT,items,**kw)

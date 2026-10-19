@@ -19,12 +19,16 @@ for mode in ['latest', 'release', 'artifact']:
         if z.namelist() != ['report.json'] or z.getinfo('report.json').file_size > 32 * 1024**2:
             raise ValueError('unexpected report artifact members')
         report = json.loads(z.read('report.json'))
+    if mode == 'artifact':
+        probe_env = dict(os.environ, PAGE_URL=outputs['page-url'])
+        subprocess.run(['node', 'distribution-fixtures/negative-served.mjs'], env=probe_env, check=True)
     receipt = dict(schema=1, kind='pages', mode=mode, candidate=os.environ['AUTOMATION_SHA'],
                    sourceCommit=os.environ['GITHUB_SHA'], runId=os.environ['GITHUB_RUN_ID'],
                    attempt=os.environ['GITHUB_RUN_ATTEMPT'], report=report, served=True,
                    deploymentId=outputs['deployment-id'], pageUrl=outputs['page-url'],
                    reportArtifactId=artifact_id, deliveryDigest=outputs['delivery-digest'],
-                   sourceArtifactId=os.environ['SOURCE_ARTIFACT_ID'] if mode == 'artifact' else '')
+                   sourceArtifactId=os.environ['SOURCE_ARTIFACT_ID'] if mode == 'artifact' else '',
+                   negative404=(mode == 'artifact'), negativeDigest=(mode == 'artifact'))
     folder = Path('evidence') / ('pages-' + mode)
     folder.mkdir(parents=True)
     (folder / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')

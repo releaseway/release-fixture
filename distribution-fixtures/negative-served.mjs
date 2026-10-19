@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import { resolve,join } from "node:path";
+import { pathToFileURL } from "node:url";
+const {verifyServed}=await import(pathToFileURL(join(resolve("automation"),"src/distribution/verify-served.ts")));
+const base=process.env.PAGE_URL;
+const missing=`__missing_distribution_${process.env.GITHUB_RUN_ID}_${process.env.GITHUB_RUN_ATTEMPT}`;
+const response=await fetch(new URL(missing,base),{redirect:"manual",signal:AbortSignal.timeout(15000)});
+assert.equal(response.status,404);await response.body?.cancel();
+await assert.rejects(verifyServed(base,[{path:missing,size:0,sha256:"f".repeat(64),origin:"selected"}],fetch,Date.now()+500),/deadline/);
+await assert.rejects(verifyServed(base,[{path:".nojekyll",size:0,sha256:"f".repeat(64),origin:"selected"}],fetch,Date.now()+500),/deadline/);

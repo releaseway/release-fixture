@@ -17,7 +17,7 @@ on:
 permissions:
   contents: read
 env:
-  AUTOMATION_SHA: ffb14e23d82787abbede0256f11e9e36c923bf1e
+  AUTOMATION_SHA: 2fbb91416c9ecd0a4ab0f60de72500317315db8c
 jobs:
   publish:
     runs-on: ubuntu-24.04
@@ -134,7 +134,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@ffb14e23d82787abbede0256f11e9e36c923bf1e
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@2fbb91416c9ecd0a4ab0f60de72500317315db8c
     with:
       files: release-fixture_*.tar.gz
   pages-release:
@@ -145,7 +145,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@ffb14e23d82787abbede0256f11e9e36c923bf1e
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@2fbb91416c9ecd0a4ab0f60de72500317315db8c
     with:
       tag: ${{ needs.publish.outputs.tag }}
       config: .github/distribution/files.yml
@@ -157,7 +157,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@ffb14e23d82787abbede0256f11e9e36c923bf1e
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@2fbb91416c9ecd0a4ab0f60de72500317315db8c
     with:
       artifact-id: ${{ needs.publish.outputs.artifact-id }}
       files: |
@@ -184,6 +184,18 @@ jobs:
           pattern: distribution-core-*-${{ github.run_id }}-${{ github.run_attempt }}
           path: evidence
           digest-mismatch: error
+      - name: Checkout verifier for public failure probes
+        if: inputs.pages == true
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/actions
+          ref: ${{ env.AUTOMATION_SHA }}
+          path: automation
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: inputs.pages == true
+        with:
+          node-version: '24'
       - name: Download and record exact Pages receipts
         if: inputs.pages == true
         env:

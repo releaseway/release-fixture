@@ -10,7 +10,7 @@ const report=JSON.parse(await readFile(env.DISTRIBUTION_REPORT,"utf8"));
 const tag=env.FIXTURE_TAG;
 const sourceEnv={...env,GITHUB_OUTPUT:"",INPUT_FILES:"bootstrap.sh\ndiagnose.ps1\nbootstrap.mjs",INPUT_TAG:tag,INPUT_TOKEN:env.GH_TOKEN,INPUT_COMMIT:env.GITHUB_SHA};
 assert.equal(execFileSync("git",["-C",automation,"rev-parse","HEAD"],{encoding:"utf8"}).trim(),env.AUTOMATION_SHA);
-assert.deepEqual(await readFile(join(env.DISTRIBUTION_PATH,"bootstrap.sh")),await readFile(join(automation,"test/distribution-fixtures/authored/bootstrap.sh")));
+assert.deepEqual(await readFile(join(env.DISTRIBUTION_PATH,"bootstrap.sh")),execFileSync("git",["-C",automation,"show",`${env.AUTOMATION_SHA}:test/distribution-fixtures/authored/bootstrap.sh`]));
 const rerun=await distribute(sourceEnv);assert.equal(rerun.digest,report.digest);
 const bad=new GhClient(env.GH_TOKEN,join(env.RUNNER_TEMP,"tamper-gh-cache"));const download=bad.download.bind(bad);
 bad.download=async(endpoint,path,maximum)=>{await download(endpoint,path,maximum);await appendFile(path,"tampered");};
