@@ -1,0 +1,206 @@
+name: distribution acceptance
+on:
+  push:
+    branches: [feat/generic-distribution]
+    paths:
+      - .github/workflows/distribution-acceptance.yml
+      - .github/distribution/**
+      - distribution-fixtures/**
+      - scripts/verify-distribution-candidate.py
+      - test/distribution.py
+  workflow_dispatch:
+    inputs:
+      pages:
+        description: Deploy only to this fixture repository's preconfigured isolated Pages site.
+        type: boolean
+        default: false
+permissions:
+  contents: read
+env:
+  AUTOMATION_SHA: ffb14e23d82787abbede0256f11e9e36c923bf1e
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.publish.outputs.tag }}
+      artifact-id: ${{ steps.artifact.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify literal candidate before writes
+        run: python3 scripts/verify-distribution-candidate.py --candidate "$AUTOMATION_SHA"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/actions
+          ref: ${{ env.AUTOMATION_SHA }}
+          path: automation
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Build opaque fixtures
+        shell: bash
+        run: |
+          node automation/test/distribution-fixtures/build.mjs distribution-payload
+          mkdir -p distribution-payload/.well-known dist
+          printf '{"fixture":true}\n' > distribution-payload/.well-known/fixture.json
+          printf '<!doctype html><title>Distribution acceptance fixture</title>\n' > distribution-payload/index.html
+          cp distribution-payload/authored/bootstrap.sh distribution-payload/authored/diagnose.ps1 distribution-payload/generated/bootstrap.mjs dist/
+          cp distribution-payload/updates/* dist/
+          cp distribution-payload/.well-known/fixture.json dist/well-known.json
+          cp distribution-payload/index.html dist/
+      - id: artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: distribution-source-${{ github.run_id }}-${{ github.run_attempt }}
+          path: distribution-payload
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+      - id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="distribution-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          gh release create "$tag" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false --title "$tag" --notes 'Isolated generic distribution acceptance fixtures.'
+          printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
+  public-source:
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/actions
+          ref: ${{ env.AUTOMATION_SHA }}
+          path: automation
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - run: npm ci --prefix automation
+      - id: distribution
+        uses: ./automation/distribute
+        with:
+          tag: ${{ needs.publish.outputs.tag }}
+          commit: ${{ github.sha }}
+          files: |
+            bootstrap.sh
+            diagnose.ps1
+            bootstrap.mjs
+      - name: Observe public bytes, native scripts, cross-repo read, tamper rejection and rerun
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FIXTURE_TAG: ${{ needs.publish.outputs.tag }}
+          DISTRIBUTION_REPORT: ${{ steps.distribution.outputs.report }}
+          DISTRIBUTION_PATH: ${{ steps.distribution.outputs.path }}
+        run: node distribution-fixtures/public-evidence.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: distribution-core-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: distribution-evidence/receipt.json
+          if-no-files-found: error
+          retention-days: 7
+  pages-preflight:
+    if: inputs.pages == true
+    needs: [publish, public-source]
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: read
+      contents: read
+    steps:
+      - name: Require this repository's isolated fixture site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$GITHUB_REPOSITORY" = releaseway/release-fixture
+          gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.build_type == "workflow" and .cname == null' | jq -e '. == true'
+  pages-latest:
+    needs: pages-preflight
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+      pages: write
+      id-token: write
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@ffb14e23d82787abbede0256f11e9e36c923bf1e
+    with:
+      files: release-fixture_*.tar.gz
+  pages-release:
+    needs: [publish, pages-latest]
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+      pages: write
+      id-token: write
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@ffb14e23d82787abbede0256f11e9e36c923bf1e
+    with:
+      tag: ${{ needs.publish.outputs.tag }}
+      config: .github/distribution/files.yml
+  pages-artifact:
+    needs: [publish, pages-release]
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+      pages: write
+      id-token: write
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@ffb14e23d82787abbede0256f11e9e36c923bf1e
+    with:
+      artifact-id: ${{ needs.publish.outputs.artifact-id }}
+      files: |
+        authored
+        generated
+        apps
+        resources
+        updates
+        .well-known
+        index.html
+  evidence:
+    if: always() && needs.public-source.result == 'success' && (inputs.pages != true || needs.pages-artifact.result == 'success')
+    needs: [publish, public-source, pages-latest, pages-release, pages-artifact]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: distribution-core-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence
+          digest-mismatch: error
+      - name: Download and record exact Pages receipts
+        if: inputs.pages == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          SOURCE_ARTIFACT_ID: ${{ needs.publish.outputs.artifact-id }}
+        run: python3 distribution-fixtures/pages-evidence.py
+      - name: Require current complete evidence
+        env:
+          CHECK_PAGES: ${{ inputs.pages == true }}
+        run: |
+          extra=()
+          if [ "$CHECK_PAGES" != true ]; then extra+=(--public-only); fi
+          python3 scripts/verify-distribution-candidate.py --candidate "$AUTOMATION_SHA" --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" --evidence evidence "${extra[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: distribution-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence
+          if-no-files-found: error
+          retention-days: 7
