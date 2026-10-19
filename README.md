@@ -1,6 +1,6 @@
 # release-fixture
 
-Deterministic product/source fixture for shared release and Homebrew automation.
+Deterministic product/source fixture for shared release, Homebrew and generic file distribution automation.
 
 The Homebrew specs also verify command aliases created by `homebrew-actions`:
 `rw-fixture` and `release-fixture-cli` run the release asset's `release-fixture`,
@@ -21,6 +21,19 @@ Release creation and notes acceptance use `releaseway/actions v0.4.1`; Homebrew
 checks and acceptance use `releaseway/homebrew-actions v0.4.0`. Workflow references
 remain pinned to the full release commit SHA. Candidate acceptance can select a
 different SHA through the documented inputs and pinning helper.
+
+## Generic distribution acceptance
+
+The [distribution fixture guide](distribution-fixtures/README.md) covers the
+separate `distribution-acceptance.yml` campaign: public Release reads on Linux,
+macOS and Windows, generated same-run artifacts, and optional real Pages deployment.
+Its automation pin is the published actions **v0.5.0** commit
+`1c0b9237f61ee66f68db880963ec03da46c8a6ed`.
+
+This pin is independent of the v0.4.1 release-creation and notes-suite defaults
+above. Notes acceptance can select v0.5.0 with `action-ref`; changing documentation
+does not change those workflow defaults. The release-readiness gate below accepts
+notes evidence, while complete distribution evidence uses its own checker.
 
 ## Release fixture
 
@@ -79,6 +92,8 @@ are separate from the permanent fixture tap and any production repository.
 ```sh
 python3 test/fixtures.py
 python3 test/candidates.py
+python3 test/expected-failure.py
+python3 test/distribution.py
 ```
 
 CI also lints all fixture workflows.
@@ -88,6 +103,9 @@ CI also lints all fixture workflows.
 Each action repository's `release.yml` requires an existing stable `tag` and
 `acceptance-runs` containing comma-separated fixture run IDs. It checks the latest
 push CI at the tag's exact SHA and all matching acceptance before publication.
+Pushing a new tag starts another push CI run, so wait for that newest run before
+dispatching publication. An earlier successful branch run does not hide a newer
+pending or failed run.
 
 | Candidate | Required CI | Required acceptance |
 | --- | --- | --- |
