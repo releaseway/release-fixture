@@ -17,7 +17,7 @@ on:
 permissions:
   contents: read
 env:
-  AUTOMATION_SHA: 1c0b9237f61ee66f68db880963ec03da46c8a6ed
+  AUTOMATION_SHA: 7427110b565bedef79ab0f80e6821a706d7f21ed
 jobs:
   publish:
     runs-on: ubuntu-24.04
@@ -146,7 +146,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@1c0b9237f61ee66f68db880963ec03da46c8a6ed # v0.5.0
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@7427110b565bedef79ab0f80e6821a706d7f21ed # v0.5.1 candidate
     with:
       files: release-fixture_*.tar.gz
   pages-release:
@@ -157,7 +157,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@1c0b9237f61ee66f68db880963ec03da46c8a6ed # v0.5.0
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@7427110b565bedef79ab0f80e6821a706d7f21ed # v0.5.1 candidate
     with:
       tag: ${{ needs.publish.outputs.tag }}
       config: .github/distribution/files.yml
@@ -169,7 +169,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@1c0b9237f61ee66f68db880963ec03da46c8a6ed # v0.5.0
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@7427110b565bedef79ab0f80e6821a706d7f21ed # v0.5.1 candidate
     with:
       artifact-id: ${{ needs.publish.outputs.artifact-id }}
       files: |

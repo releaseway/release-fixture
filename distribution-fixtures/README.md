@@ -2,8 +2,8 @@
 
 Test `releaseway/actions/distribute` and its optional Pages workflow through their
 public interfaces. The separate `distribution-acceptance.yml` workflow currently
-pins the published **v0.5.0** commit
-`1c0b9237f61ee66f68db880963ec03da46c8a6ed`.
+pins the reviewed **v0.5.1 candidate**
+`7427110b565bedef79ab0f80e6821a706d7f21ed` for release acceptance.
 
 The default run publishes a new `distribution-<run>-<attempt>` prerelease with
 `latest=false`. It keeps the stable latest Release unchanged and exercises public
@@ -92,7 +92,8 @@ distribution receipts.
 
 [Run 39226440359, attempt 1](https://github.com/releaseway/release-fixture/actions/runs/39226440359)
 passed all 12 jobs at fixture commit
-`ce4750878a78c5ded6526537fe9c085a97edf233` with the v0.5.0 automation SHA above.
+`ce4750878a78c5ded6526537fe9c085a97edf233` with automation
+`1c0b9237f61ee66f68db880963ec03da46c8a6ed` (v0.5.0).
 All six receipts were downloaded and checked locally at completion. This is
 historical verification evidence; artifacts expire and the live fixture site can
 be replaced by later successful campaigns.
