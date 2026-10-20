@@ -2,8 +2,8 @@
 
 Test `releaseway/actions/distribute` and its optional Pages workflow through their
 public interfaces. The separate `distribution-acceptance.yml` workflow currently
-pins the published **v0.5.1** commit
-`7427110b565bedef79ab0f80e6821a706d7f21ed`.
+pins the published **v0.6.0** commit
+`804562f2eb9d7662810298835f7339bd6f26fcfa`.
 
 The default run publishes a new `distribution-<run>-<attempt>` prerelease with
 `latest=false`. It keeps the stable latest Release unchanged and exercises public
@@ -102,7 +102,8 @@ be replaced by later successful campaigns.
 
 [Run 39244272575, attempt 1](https://github.com/releaseway/release-fixture/actions/runs/39244272575)
 passed all 12 jobs at fixture commit
-`e27e31d2c24e77bafa9e74f5d453ec7783ba28c7` using the v0.5.1 SHA above. All six
+`e27e31d2c24e77bafa9e74f5d453ec7783ba28c7` using the historical v0.5.1 SHA
+`7427110b565bedef79ab0f80e6821a706d7f21ed`. All six
 receipts were downloaded and independently checked for the exact candidate, source,
 run and attempt. The campaign covered all three real Pages deployment modes and
 public source/script checks on Linux, macOS and Windows. Artifact retention and
