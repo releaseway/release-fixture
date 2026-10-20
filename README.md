@@ -152,3 +152,26 @@ Publication is an explicit dispatch. GitHub Releases need fixture `contents: wri
 npm needs `id-token: write` and its Trusted Publishers; Homebrew writes only to an
 allowlisted fixture tap using its deploy key. Reuse compatible immutable Releases
 and retry against current tap state after conflicts. The checker performs no writes.
+
+## App-free source-tag acceptance
+
+`app-free-acceptance.yml` accepts a full `action-ref` candidate SHA. It prepares rc
+and stable on the same original fixture commit, builds deterministic version and
+platform assets, publishes both immutable Releases, and checks missing-tag resolve
+without writes. The isolated `app-free-v` namespace preserves existing fixture tags.
+For the complete readiness gate, enable both `homebrew` and `pages`: the existing
+tap deploy key publishes only `release-fixture-app-free`, and the existing Pages
+workflow verifies the served stable version. This updates the dedicated fixture
+site; it is not a product deployment. These modes require the existing tap secret,
+Homebrew access and configured isolated Pages environment.
+
+After stable exists, automatic rc planning deliberately closes. To reconcile that
+same source, supply both `rc-tag` and `stable-tag`; the workflow resolves their exact
+source bindings instead of searching tags or changing versions. Deterministic
+assets let an existing immutable Release be verified again.
+
+Final evidence is `app-free-acceptance-<run_attempt>` and binds candidate SHA,
+fixture source, workflow/run/attempt, annotated tag objects, same-core versions,
+public assets, tap commit and actual Pages deployment/served digest. It is useful
+only after a real successful run. The local fixture tests do not establish public
+release, tap or Pages readiness.

@@ -1,0 +1,245 @@
+name: App-free source-tag acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      action-ref:
+        description: Full verified actions candidate SHA
+        required: true
+        type: string
+      rc-tag:
+        description: Existing app-free rc tag for explicit reconciliation; supply with
+          stable-tag
+        type: string
+        default: ""
+      stable-tag:
+        description: Existing stable tag for explicit reconciliation
+        type: string
+        default: ""
+      homebrew:
+        description: Run existing tap deploy-key acceptance on its isolated Formula
+        type: boolean
+        default: false
+      pages:
+        description: Deploy to the fixture repository preconfigured Pages environment
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: app-free-release-fixture
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.stable-plan.outputs.tag || steps.stable-resolve.outputs.tag }}
+      version: ${{ steps.stable-plan.outputs.version ||
+        steps.stable-resolve.outputs.version }}
+      commit: ${{ github.sha }}
+      evidence-id: ${{ steps.evidence.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: "24"
+      - name: Validate fixture and exact candidates
+        env:
+          ACTIONS_REF: ${{ inputs.action-ref }}
+          NPM_REF: ""
+          RC_TAG: ${{ inputs.rc-tag }}
+          STABLE_TAG: ${{ inputs.stable-tag }}
+        run: python3 scripts/app-free.py validate
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: releaseway/actions
+          ref: ${{ inputs.action-ref }}
+          path: release-action
+          persist-credentials: false
+      - name: Verify candidate checkout identities before writes
+        env:
+          ACTIONS_REF: ${{ inputs.action-ref }}
+          NPM_REF: ""
+        run: test "$(git -C release-action rev-parse HEAD)" = "$ACTIONS_REF"
+      - id: rc-plan
+        if: ${{ inputs.rc-tag == '' }}
+        uses: ./release-action/prepare
+        with:
+          mode: plan
+          release-config: .github/app-free.yml
+          prerelease-id: rc
+          plan-path: ${{ format('{0}/rc-plan.json', runner.temp) }}
+      - id: rc-resolve
+        if: ${{ inputs.rc-tag != '' }}
+        uses: ./release-action/prepare
+        with:
+          mode: resolve
+          tag: ${{ inputs.rc-tag }}
+          commit: ${{ github.sha }}
+          allow-prerelease: "true"
+          tag-prefix: app-free-v
+      - name: Build exact rc assets
+        env:
+          VERSION: ${{ steps.rc-plan.outputs.version || steps.rc-resolve.outputs.version
+            }}
+          DEST: ${{ format('{0}/app-free-rc', runner.temp) }}
+        run: |-
+          python3 scripts/app-free.py build "$VERSION" "$DEST"
+          python3 scripts/build-fixtures.py "$VERSION"
+          cp dist/*.tar.gz "$DEST/"
+      - id: rc-bind
+        if: ${{ inputs.rc-tag == '' }}
+        uses: ./release-action/prepare
+        with:
+          mode: resume
+          release-config: .github/app-free.yml
+          plan-path: ${{ format('{0}/rc-plan.json', runner.temp) }}
+      - id: rc-release
+        uses: ./release-action
+        with:
+          tag: ${{ steps.rc-plan.outputs.tag || steps.rc-resolve.outputs.tag }}
+          commit: ${{ github.sha }}
+          assets: ${{ format('{0}/app-free-rc/*', runner.temp) }}
+          notes: none
+          prerelease: "true"
+          latest: "false"
+      - id: stable-plan
+        if: ${{ inputs.stable-tag == '' }}
+        uses: ./release-action/prepare
+        with:
+          mode: plan
+          release-config: .github/app-free.yml
+          prerelease-id: ""
+          plan-path: ${{ format('{0}/stable-plan.json', runner.temp) }}
+      - id: stable-resolve
+        if: ${{ inputs.stable-tag != '' }}
+        uses: ./release-action/prepare
+        with:
+          mode: resolve
+          tag: ${{ inputs.stable-tag }}
+          commit: ${{ github.sha }}
+          allow-prerelease: "false"
+          tag-prefix: app-free-v
+      - name: Build exact stable assets
+        env:
+          VERSION: ${{ steps.stable-plan.outputs.version ||
+            steps.stable-resolve.outputs.version }}
+          DEST: ${{ format('{0}/app-free-stable', runner.temp) }}
+        run: |-
+          python3 scripts/app-free.py build "$VERSION" "$DEST"
+          python3 scripts/build-fixtures.py "$VERSION"
+          cp dist/*.tar.gz "$DEST/"
+      - id: stable-bind
+        if: ${{ inputs.stable-tag == '' }}
+        uses: ./release-action/prepare
+        with:
+          mode: resume
+          release-config: .github/app-free.yml
+          plan-path: ${{ format('{0}/stable-plan.json', runner.temp) }}
+      - id: stable-release
+        uses: ./release-action
+        with:
+          tag: ${{ steps.stable-plan.outputs.tag || steps.stable-resolve.outputs.tag }}
+          commit: ${{ github.sha }}
+          assets: ${{ format('{0}/app-free-stable/*', runner.temp) }}
+          notes: none
+          prerelease: "false"
+          latest: "false"
+      - id: missing
+        continue-on-error: true
+        uses: ./release-action/prepare
+        with:
+          mode: resolve
+          allow-prerelease: "true"
+          tag: ${{ format('app-free-missing-v0.0.0-rc.{0}', github.run_id) }}
+      - name: Require missing tag rejection
+        env:
+          OUTCOME: ${{ steps.missing.outcome }}
+        run: test "$OUTCOME" = failure
+      - name: Resolve existing rc without writes
+        uses: ./release-action/prepare
+        with:
+          mode: resolve
+          allow-prerelease: "true"
+          tag-prefix: app-free-v
+          tag: ${{ steps.rc-plan.outputs.tag || steps.rc-resolve.outputs.tag }}
+          commit: ${{ github.sha }}
+      - name: Bind current-attempt evidence to real results
+        env:
+          ACTIONS_REF: ${{ inputs.action-ref }}
+          RC_TAG: ${{ steps.rc-plan.outputs.tag || steps.rc-resolve.outputs.tag }}
+          RC_VERSION: ${{ steps.rc-plan.outputs.version ||
+            steps.rc-resolve.outputs.version }}
+          STABLE_TAG: ${{ steps.stable-plan.outputs.tag ||
+            steps.stable-resolve.outputs.tag }}
+          STABLE_VERSION: ${{ steps.stable-plan.outputs.version ||
+            steps.stable-resolve.outputs.version }}
+          MISSING_DIAGNOSTICS: ${{ steps.missing.outputs.diagnostics-path }}
+        run: python3 scripts/app-free.py collect git
+      - id: evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: app-free-base-git-${{ github.run_attempt }}
+          path: app-free-acceptance.json
+          if-no-files-found: error
+          retention-days: 30
+  homebrew:
+    if: ${{ inputs.homebrew }}
+    needs: release
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@d3f1522212aca4702a32805159b0bd3e88561986
+    with:
+      tap-repository: releaseway/homebrew-tap-fixture
+      spec-path: .github/homebrew/app-free-formula.yml
+      commit: ${{ needs.release.outputs.commit }}
+      version: ${{ needs.release.outputs.version }}
+    secrets:
+      tap_deploy_key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+  pages:
+    if: ${{ inputs.pages }}
+    needs: release
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+      pages: write
+      id-token: write
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@7427110b565bedef79ab0f80e6821a706d7f21ed
+    with:
+      tag: ${{ needs.release.outputs.tag }}
+      files: version.txt
+  evidence:
+    if: ${{ always() && needs.release.result == 'success' && (needs.homebrew.result
+      == 'success' || needs.homebrew.result == 'skipped') && (needs.pages.result
+      == 'success' || needs.pages.result == 'skipped') }}
+    needs:
+      - release
+      - homebrew
+      - pages
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: ${{ needs.release.outputs.evidence-id }}
+          path: .
+          digest-mismatch: error
+      - name: Record verified optional deliveries
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HOMEBREW: ${{ needs.homebrew.result }}
+          PAGES: ${{ needs.pages.result }}
+          TAP_FORMULA: ${{ needs.homebrew.outputs.formula }}
+          TAP_VERSION: ${{ needs.homebrew.outputs.version }}
+          PAGE_URL: ${{ needs.pages.outputs.page-url }}
+          DEPLOYMENT_ID: ${{ needs.pages.outputs.deployment-id }}
+          CONTENT_DIGEST: ${{ needs.pages.outputs.content-digest }}
+        run: python3 scripts/app-free.py delivery
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: app-free-acceptance-${{ github.run_attempt }}
+          path: app-free-acceptance.json
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,5 @@
+strategy: source-tag
+branch: main
+tag-prefix: app-free-v
+initial-version: 0.1.0
+latest: "false"

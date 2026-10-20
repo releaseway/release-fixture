@@ -1,0 +1,16 @@
+name: release-fixture-app-free
+desc: Isolated original-commit release acceptance fixture
+homepage: https://github.com/releaseway/release-fixture
+license: MIT
+distribution:
+  type: github-release
+  tag: "app-free-v{version}"
+  assets:
+    macos-arm64: release-fixture_macos_arm64.tar.gz
+    macos-x86_64: release-fixture_macos_x86_64.tar.gz
+    linux-arm64: release-fixture_linux_arm64.tar.gz
+    linux-x86_64: release-fixture_linux_x86_64.tar.gz
+install: |
+  bin.install "release-fixture" => "release-fixture-app-free"
+test: |
+  assert_match "release-fixture #{version}", shell_output("#{bin}/release-fixture-app-free --version")
