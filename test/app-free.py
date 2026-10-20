@@ -1,3 +1,6 @@
+from contextlib import chdir
+import json
+import hashlib
 import gzip
 import io
 import os
@@ -45,6 +48,23 @@ class AppFreeFixtureTests(unittest.TestCase):
         for changed in [dict(ACTIONS_REF='main'), dict(GITHUB_REPOSITORY='other/repo'), dict(RC_TAG='app-free-v0.1.0-rc.0'), dict(ACTIONS_REF='0' * 40)]:
             with patch.dict(os.environ, {**env, **changed}, clear=True):
                 with self.assertRaises(ValueError): fixture['validate']()
+
+
+    def test_pages_digest_adapts_the_existing_prefixed_output(self):
+        version = b'0.1.2\n'
+        original = dict(channels={'stable': {'asset_sha256': hashlib.sha256(version).hexdigest()}})
+        env = dict(HOMEBREW='skipped', PAGES='success', PAGE_URL='https://releaseway.github.io/release-fixture/', DEPLOYMENT_ID='123', CONTENT_DIGEST='sha256:' + 'e' * 64)
+        with tempfile.TemporaryDirectory() as directory, chdir(directory):
+            path = Path('app-free-acceptance.json')
+            path.write_text(json.dumps(original))
+            with patch.dict(os.environ, env, clear=True), patch('urllib.request.urlopen', return_value=io.BytesIO(version)):
+                fixture['delivery']()
+            result = json.loads(path.read_text())
+            self.assertEqual(result['pages']['content_digest'], 'e' * 64)
+            self.assertEqual(result['pages']['served_sha256'], hashlib.sha256(version).hexdigest())
+            with patch.dict(os.environ, {**env, 'CONTENT_DIGEST': 'e' * 64}, clear=True), patch('urllib.request.urlopen', return_value=io.BytesIO(version)):
+                with self.assertRaises(ValueError): fixture['delivery']()
+
 
 
 if __name__ == '__main__': unittest.main()

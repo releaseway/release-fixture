@@ -142,8 +142,9 @@ def delivery():
         with urllib.request.urlopen(url.rstrip('/') + '/version.txt', timeout=60) as response:
             data = response.read(4096)
         require(hashlib.sha256(data).hexdigest() == evidence['channels']['stable']['asset_sha256'], 'Pages served version differs from Release')
-        require(re.fullmatch(r'[0-9a-f]{64}', os.environ['CONTENT_DIGEST']), 'invalid Pages content digest')
-        evidence['pages'] = {'url': url, 'deployment_id': int(os.environ['DEPLOYMENT_ID']), 'content_digest': os.environ['CONTENT_DIGEST'], 'served_sha256': hashlib.sha256(data).hexdigest()}
+        content_digest = os.environ['CONTENT_DIGEST']
+        require(re.fullmatch(r'sha256:[0-9a-f]{64}', content_digest), 'invalid Pages content digest')
+        evidence['pages'] = {'url': url, 'deployment_id': int(os.environ['DEPLOYMENT_ID']), 'content_digest': content_digest.removeprefix('sha256:'), 'served_sha256': hashlib.sha256(data).hexdigest()}
     path.write_text(json.dumps(evidence, indent=2) + '\n')
 
 if __name__ == '__main__':
