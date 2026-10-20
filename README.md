@@ -108,7 +108,7 @@ pending or failed run.
 
 | Candidate | Required CI | Required acceptance |
 | --- | --- | --- |
-| `releaseway/actions` | `test.yml` | `release-notes-acceptance.yml`, `suite=all` |
+| `releaseway/actions` | `test.yml` + `distribution.yml` | `release-notes-acceptance.yml`, `suite=all`, plus full `distribution-acceptance.yml` with Pages enabled |
 | `releaseway/npm-actions` | `check.yml` including platform matrix | npm fixture `publish.yml` staged + `direct.yml` fresh published; at least one `version-source=git-tag` |
 | `releaseway/homebrew-actions` | `test.yml` | `homebrew-acceptance.yml` source + release Formulae |
 
@@ -152,6 +152,14 @@ Publication is an explicit dispatch. GitHub Releases need fixture `contents: wri
 npm needs `id-token: write` and its Trusted Publishers; Homebrew writes only to an
 allowlisted fixture tap using its deploy key. Reuse compatible immutable Releases
 and retry against current tap state after conflicts. The checker performs no writes.
+
+For future actions releases, also supply the official release dispatch input
+`distribution-run` (checker flag `--distribution-run`). Run distribution acceptance
+at the same full actions candidate SHA with `pages=true`: the gate requires native
+Linux/macOS/Windows receipts and latest/release/artifact Pages receipts from its
+current attempt, plus the latest exact-candidate distribution push CI. A public-only
+run or a notes suite alone is insufficient. Pin all three reusable Pages workflow
+references and `AUTOMATION_SHA` to that candidate before running the fixture.
 
 ## App-free source-tag acceptance
 

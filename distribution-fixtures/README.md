@@ -84,9 +84,13 @@ python3 test/distribution.py
 python3 scripts/verify-distribution-candidate.py --candidate <full-automation-sha>
 ```
 
-The pin-only check is not public execution evidence. The release-note readiness
-gate uses its own `release-notes-acceptance.yml` receipts; it does not consume these
-distribution receipts.
+The pin-only check is not public execution evidence. Future official actions
+releases require both the release-note suite and these complete distribution
+receipts. Pass the successful Pages-enabled run as `distribution-run` to the
+release workflow (`--distribution-run` to the checker). Its current-attempt artifact
+must include all three native platforms and all three Pages modes; public-only
+evidence cannot pass the release gate. Existing published releases retain their
+historical gate policy.
 
 ## Verified v0.5.0 campaign
 
