@@ -189,7 +189,7 @@ jobs:
   homebrew:
     if: ${{ inputs.homebrew }}
     needs: release
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@d3f1522212aca4702a32805159b0bd3e88561986
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@0230eae39673542278cc95ac66ef59595537482d
     with:
       tap-repository: releaseway/homebrew-tap-fixture
       spec-path: .github/homebrew/app-free-formula.yml
