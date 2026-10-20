@@ -146,7 +146,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@2abdf26c6f01c1e49da4ba5d85253847fe721fd9 # v0.6.3 candidate
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@2abdf26c6f01c1e49da4ba5d85253847fe721fd9 # v0.6.3
     with:
       files: release-fixture_*.tar.gz
   pages-release:
@@ -157,7 +157,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@2abdf26c6f01c1e49da4ba5d85253847fe721fd9 # v0.6.3 candidate
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@2abdf26c6f01c1e49da4ba5d85253847fe721fd9 # v0.6.3
     with:
       tag: ${{ needs.publish.outputs.tag }}
       config: .github/distribution/files.yml
@@ -169,7 +169,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@2abdf26c6f01c1e49da4ba5d85253847fe721fd9 # v0.6.3 candidate
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@2abdf26c6f01c1e49da4ba5d85253847fe721fd9 # v0.6.3
     with:
       artifact-id: ${{ needs.publish.outputs.artifact-id }}
       files: |

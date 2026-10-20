@@ -34,7 +34,7 @@ jobs:
 
       - name: Resolve fixture tag
         id: release
-        uses: releaseway/actions/prepare@804562f2eb9d7662810298835f7339bd6f26fcfa # v0.6.0
+        uses: releaseway/actions/prepare@2abdf26c6f01c1e49da4ba5d85253847fe721fd9 # v0.6.3
         with:
           mode: ${{ inputs.mode }}
           tag: ${{ inputs.tag }}
@@ -44,7 +44,7 @@ jobs:
 
       - name: Publish fixture release
         id: publish
-        uses: releaseway/actions@804562f2eb9d7662810298835f7339bd6f26fcfa # v0.6.0
+        uses: releaseway/actions@2abdf26c6f01c1e49da4ba5d85253847fe721fd9 # v0.6.3
         with:
           tag: ${{ steps.release.outputs.tag }}
           commit: ${{ steps.release.outputs.commit }}

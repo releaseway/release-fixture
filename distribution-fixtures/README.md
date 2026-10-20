@@ -2,8 +2,8 @@
 
 Test `releaseway/actions/distribute` and its optional Pages workflow through their
 public interfaces. The separate `distribution-acceptance.yml` workflow currently
-pins the published **v0.6.0** commit
-`804562f2eb9d7662810298835f7339bd6f26fcfa`.
+pins the published **v0.6.3** commit
+`2abdf26c6f01c1e49da4ba5d85253847fe721fd9`.
 
 The default run publishes a new `distribution-<run>-<attempt>` prerelease with
 `latest=false`. It keeps the stable latest Release unchanged and exercises public

@@ -17,8 +17,8 @@ versioned Git tags, immutable GitHub Releases, release assets, and Homebrew spec
 automation is tested from here through its public interfaces rather than by importing
 implementation files.
 
-Release creation and notes acceptance use `releaseway/actions v0.6.0`; Homebrew
-checks and acceptance use `releaseway/homebrew-actions v0.4.2`. Workflow references
+Release creation and notes acceptance use `releaseway/actions v0.6.3`; Homebrew
+checks and acceptance use `releaseway/homebrew-actions v0.4.3`. Workflow references
 remain pinned to the full release commit SHA. Candidate acceptance can select a
 different SHA through the documented inputs and pinning helper.
 
@@ -27,12 +27,12 @@ different SHA through the documented inputs and pinning helper.
 The [distribution fixture guide](distribution-fixtures/README.md) covers the
 separate `distribution-acceptance.yml` campaign: public Release reads on Linux,
 macOS and Windows, generated same-run artifacts, and optional real Pages deployment.
-Its automation pin is the published actions **v0.6.0** commit
-`804562f2eb9d7662810298835f7339bd6f26fcfa`.
+Its automation pin is the published actions **v0.6.3** commit
+`2abdf26c6f01c1e49da4ba5d85253847fe721fd9`.
 
-Release creation and notes acceptance use the same v0.6.0 default. Notes acceptance
-can select a different candidate with `action-ref`. The release-readiness gate below
-accepts notes evidence, while complete distribution evidence uses its own checker.
+Release creation and notes acceptance use the same v0.6.3 default. Notes acceptance
+can select a different candidate with `action-ref`. The official release-readiness
+gate requires both complete notes evidence and distribution evidence with Pages enabled.
 
 ## Release fixture
 
