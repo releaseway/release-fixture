@@ -67,7 +67,7 @@ jobs:
 
   reject:
     needs: resolve
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@68d37e82d0ab6a2f294c9e3a0b62c1823b2da28f
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@27d4bb253d147128364a3609115c6c90f2baff89
     with:
       commit: ${{ needs.resolve.outputs.commit }}
       spec-commit: ${{ needs.resolve.outputs.spec-commit }}
