@@ -17,22 +17,25 @@ versioned Git tags, immutable GitHub Releases, release assets, and Homebrew spec
 automation is tested from here through its public interfaces rather than by importing
 implementation files.
 
-Release creation and notes acceptance use `releaseway/actions v0.6.3`; Homebrew
-checks and acceptance use `releaseway/homebrew-actions v0.4.3`. Workflow references
-remain pinned to the full release commit SHA. Candidate acceptance can select a
-different SHA through the documented inputs and pinning helper.
+Workflow files are the source of truth for automation dependencies. Release
+creation and notes acceptance have their own actions defaults; Homebrew checks and
+acceptance have their own homebrew-actions pins. References use full commit SHAs.
+Candidate acceptance can select a different SHA through the documented inputs and
+pinning helper. Read the workflow at the fixture commit being tested for its exact
+dependency identities.
 
 ## Generic distribution acceptance
 
 The [distribution fixture guide](distribution-fixtures/README.md) covers the
 separate `distribution-acceptance.yml` campaign: public Release reads on Linux,
 macOS and Windows, generated same-run artifacts, and optional real Pages deployment.
-Its automation pin is the published actions **v0.6.3** commit
-`2abdf26c6f01c1e49da4ba5d85253847fe721fd9`.
+Its automation candidate is recorded in `AUTOMATION_SHA` and all literal reusable
+workflow refs in `.github/workflows/distribution-acceptance.yml`; it can differ
+from the release-creation and notes defaults.
 
-Release creation and notes acceptance use the same v0.6.3 default. Notes acceptance
-can select a different candidate with `action-ref`. The official release-readiness
-gate requires both complete notes evidence and distribution evidence with Pages enabled.
+Notes acceptance selects its candidate with `action-ref`. The release-readiness
+gate requires complete notes evidence, legacy distribution evidence and the
+separate release-set aggregate with Pages enabled, all for the same actions SHA.
 
 ## Release fixture
 
@@ -41,8 +44,7 @@ Dispatch `release.yml` with `mode=prepare` to calculate the next patch from
 both atomically through Releaseway. The workflow keeps only the deterministic
 product build command and release settings. `mode=resolve` with `tag=vX.Y.Z` verifies
 and publishes an existing tag. Both paths use `latest: current-series`; a failed
-build/publication can rerun preparation and resume the same release. The verified
-`v1.2.9` fixture was generated through this complete preparation/publication flow.
+build/publication can rerun preparation and resume the same release.
 
 `scripts/build-fixtures.py` produces byte-identical archives for:
 
@@ -86,7 +88,7 @@ Only these matching test tap/credential pairs are accepted. Keep the smoke tap
 and its dedicated credential available for repeatable starter acceptance; they
 are separate from the permanent fixture tap and any production repository.
 
-The unreleased revision/platform campaign uses a separate set of Formula names and
+The revision/platform campaign uses a separate set of Formula names and
 real Go binaries. See [the feature campaign guide](homebrew-features/README.md) for
 four native upgrades, single/asymmetric architectures, rejection cases and original
 native receipt preservation. Run it and the legacy campaign sequentially against
@@ -99,6 +101,7 @@ python3 test/fixtures.py
 python3 test/candidates.py
 python3 test/expected-failure.py
 python3 test/distribution.py
+python3 test/distribution-release-set.py
 python3 test/homebrew-features.py
 ```
 
@@ -115,7 +118,7 @@ pending or failed run.
 
 | Candidate | Required CI | Required acceptance |
 | --- | --- | --- |
-| `releaseway/actions` | `test.yml` + `distribution.yml` | `release-notes-acceptance.yml`, `suite=all`, plus full `distribution-acceptance.yml` with Pages enabled |
+| `releaseway/actions` | `test.yml` + `distribution.yml` | `release-notes-acceptance.yml`, `suite=all`, plus full `distribution-acceptance.yml` with legacy and release-set evidence and Pages enabled |
 | `releaseway/npm-actions` | `check.yml` including platform matrix | npm fixture `publish.yml` staged + `direct.yml` fresh published; at least one `version-source=git-tag` |
 | `releaseway/homebrew-actions` | `test.yml` | `homebrew-acceptance.yml` source + release Formulae and `homebrew-features-acceptance.yml` 21-case revision/platform campaign |
 
@@ -148,7 +151,7 @@ workflow, fixture commit, current attempt and success with the JSON and candidat
 SHA. Expired/missing artifacts, another SHA, partial suites and failed runs fail.
 Preserve run IDs. Before a new collection, rerun complete acceptance when original
 evidence expires. Distribution evidence has a separate 7-day artifact lifetime;
-native Homebrew and final acceptance artifacts retain 30 days. The unreleased
+native Homebrew and final acceptance artifacts retain 30 days. The
 official publication workflows preserve original ZIPs in an immutable approval
 asset, so already-archived approvals survive later Actions expiry. See
 [archive verification and recovery](https://github.com/releaseway/actions/blob/main/docs/release-evidence.md).
@@ -169,13 +172,16 @@ npm needs `id-token: write` and its Trusted Publishers; Homebrew writes only to 
 allowlisted fixture tap using its deploy key. Reuse compatible immutable Releases
 and retry against current tap state after conflicts. The checker performs no writes.
 
-For future actions releases, also supply the official release dispatch input
+For actions releases, also supply the official release dispatch input
 `distribution-run` (checker flag `--distribution-run`). Run distribution acceptance
 at the same full actions candidate SHA with `pages=true`: the gate requires native
-Linux/macOS/Windows receipts and latest/release/artifact Pages receipts from its
-current attempt, plus the latest exact-candidate distribution push CI. A public-only
-run or a notes suite alone is insufficient. Pin all three reusable Pages workflow
-references and `AUTOMATION_SHA` to that candidate before running the fixture.
+Linux/macOS/Windows receipts and latest/release/artifact Pages receipts, plus the
+separate release-set aggregate and both documentation deployments from that same
+attempt. The latest exact-candidate distribution push CI must also pass. A
+public-only run or notes suite alone is insufficient. Pin every reusable Pages
+workflow reference and `AUTOMATION_SHA` to the candidate before running the fixture.
+Follow the [distribution campaign guide](distribution-fixtures/README.md) for
+fresh dataset prefixes and original provider-artifact checks.
 
 ## App-free source-tag acceptance
 

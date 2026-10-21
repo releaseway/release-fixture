@@ -2,9 +2,9 @@
 
 Test `releaseway/actions/distribute` and its optional Pages workflow through their
 public interfaces. The separate `distribution-acceptance.yml` workflow pins a
-reviewed **unreleased release-set candidate** in `AUTOMATION_SHA` and five literal
+reviewed release-set candidate in `AUTOMATION_SHA` and all literal
 reusable-workflow refs. Read the workflow at the run's fixture SHA for its exact
-candidate. Published v0.6.3 does not include schema 2 or `site-artifact-id`.
+candidate. The candidate must implement schema 2 and `site-artifact-id`.
 
 The default run publishes a new `distribution-<run>-<attempt>` prerelease with
 `latest=false`. It keeps the stable latest Release unchanged and exercises public
@@ -12,7 +12,7 @@ reads, cross-repository read access, tamper rejection, repeat preparation and
 native fixture scripts on Linux, macOS and Windows. It also checks the release-set
 merge and its deterministic rejection cases on those platforms. It does not deploy Pages.
 The [consumer guide](https://github.com/releaseway/actions/tree/main/distribute)
-separates released examples from the unreleased release-set examples.
+describes the source interfaces and explains how to select a supporting ref.
 
 Before a new candidate/source campaign, commit a fresh prefix in both tracked
 `.github/distribution/release-set-{initial,final}.json` policies and their explicit
@@ -40,8 +40,7 @@ this workflow does not publish a stable automation version or adopt it in a prod
 Pages site in Actions mode, with no custom domain. The workflow never creates a
 site or changes environment protections. The approved fixture site is
 <https://releaseway.github.io/release-fixture/>. Its `github-pages` environment
-allows `main`; the temporary feature-branch rule used during implementation was
-removed. Dispatch from an allowed ref rather than bypassing that restriction.
+allows `main`. Dispatch from an allowed ref rather than bypassing that restriction.
 
 ```sh
 gh workflow run distribution-acceptance.yml \
@@ -106,7 +105,7 @@ reports last one day. The Release fixtures are prereleases with `latest=false`;
 the publisher checks that stable latest is unchanged. Explicit alias tags let the
 campaign exercise these prerelease fixtures without relabeling them as stable.
 
-To test another automation candidate, update `AUTOMATION_SHA` and all five literal
+To test another automation candidate, update `AUTOMATION_SHA` and all literal
 reusable-workflow refs together in `.github/workflows/distribution-acceptance.yml`.
 Also choose the fresh campaign prefix described above.
 There is no `action-ref` dispatch input for this campaign. Before committing, run:
@@ -117,7 +116,7 @@ python3 test/distribution-release-set.py
 python3 scripts/verify-distribution-candidate.py --candidate <full-automation-sha>
 ```
 
-The pin-only check is not public execution evidence. Future official actions
+The pin-only check is not public execution evidence. Official actions
 releases require the release-note suite, the six legacy distribution receipts and
 the separate release-set aggregate from the same complete run. Pass the successful
 Pages-enabled run as `distribution-run` to the

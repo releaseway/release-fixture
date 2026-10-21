@@ -1,6 +1,6 @@
 # Homebrew revision and platform acceptance
 
-Use this campaign to approve an unreleased homebrew-actions candidate. It operates
+Use this campaign to approve a homebrew-actions candidate. It operates
 only on `releaseway/homebrew-tap-fixture`, using `HOMEBREW_TAP_DEPLOY_KEY`. It creates
 isolated `homebrew-features-*` immutable prereleases with `latest=false` and
 `homebrew-feature-spec-*` branches. Consumers and the final collector have no tap
@@ -9,8 +9,9 @@ the negative cases compare the entire tap head before and after each rejection.
 
 ## Pin and run the candidate
 
-With Python 3, Git, Ruby and Go 1.26 or newer available, update all literal refs
-and both dispatch defaults from this fixture checkout:
+With Python 3, Git, Ruby and Go meeting
+[`native-fixture/go.mod`](../native-fixture/go.mod), update all literal refs and
+both dispatch defaults from this fixture checkout:
 
 ```sh
 python3 scripts/pin-homebrew-candidate.py "$CANDIDATE_SHA"
@@ -30,7 +31,7 @@ gh workflow run homebrew-features-acceptance.yml \
   -f automation-ref="$CANDIDATE_SHA"
 ```
 
-It fixes source A to the caller SHA, builds real Go 1.26 ELF/Mach-O binaries for
+It fixes source A to the caller SHA, builds real Go ELF/Mach-O binaries for
 four targets, and publishes deterministic archives. A separate Git index creates
 B, a direct child of A changing only the source spec's `revision: 0` to `1`.
 The caller checkout/index and upstream program stay intact. Version is
@@ -39,7 +40,7 @@ attempt receipts cannot satisfy the current attempt.
 
 After the feature run finishes, prepare a new normal fixture release through the
 existing `release.yml` workflow. Run `homebrew-acceptance.yml` from that immutable
-fixture tag, with both `tag` and matching `automation-ref`. The official future
+fixture tag, with both `tag` and matching `automation-ref`. The official
 Homebrew gate requires both successful run IDs at the same candidate SHA. The two
 campaigns may use different fixture commits; each is checked against its own run.
 
@@ -67,7 +68,7 @@ There is no approval artifact when required jobs fail or skip. Native invocation
 and individual receipt artifacts also retain 30 days.
 
 The automation's release gate independently verifies the complete contract and
-compares embedded ZIPs to the provider's original bytes. A future durable release
+compares embedded ZIPs to the provider's original bytes. The durable release
 bundle preserves both acceptance ZIPs and all six native ZIPs for offline replay.
 See [archive verification](https://github.com/releaseway/actions/blob/main/docs/release-evidence.md).
 
