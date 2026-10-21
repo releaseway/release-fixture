@@ -5,15 +5,23 @@ import json
 from pathlib import Path
 import re
 import unicodedata
+import subprocess
 
 
 def verify_pin(candidate, text):
     if not re.fullmatch(r'[a-f0-9]{40}', candidate):
         raise ValueError('candidate must be a full lowercase commit SHA')
-    pins = re.findall(r'uses: releaseway/actions/\.github/workflows/distribute-pages\.yml@([a-f0-9]{40})', text)
-    if len(pins) != 5 or any(p != candidate for p in pins):
-        raise ValueError('all five Pages workflow pins must match the candidate')
-    if f'AUTOMATION_SHA: {candidate}' not in text:
+    parsed = subprocess.run(['ruby', '-ryaml', '-rjson', '-e',
+        'puts JSON.generate(YAML.safe_load(STDIN.read, aliases: true))'], input=text, text=True, capture_output=True)
+    try:
+        model = json.loads(parsed.stdout)
+        refs = [job.get('uses', '') for job in model['jobs'].values()]
+        pins = [ref for ref in refs if ref.startswith('releaseway/actions/.github/workflows/distribute-pages.yml')]
+    except (ValueError, KeyError, TypeError, AttributeError) as error:
+        raise ValueError('invalid distribution workflow') from error
+    if not pins or any(ref != 'releaseway/actions/.github/workflows/distribute-pages.yml@' + candidate for ref in pins):
+        raise ValueError('all executed Pages workflow pins must match the candidate')
+    if model.get('env', {}).get('AUTOMATION_SHA') != candidate:
         raise ValueError('checkout automation pin must match reusable workflow pins')
 
 

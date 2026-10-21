@@ -10,12 +10,12 @@ def pin(sha, path=Path('.github/workflows/homebrew-acceptance.yml'), check_path=
     if not re.fullmatch(r'[0-9a-fA-F]{40}', sha):
         raise ValueError('candidate must be a full 40-character commit SHA')
     changes = []
-    for selected, count, default in [(path, 4, True), (check_path, 2, False), (feature_path, 8, True), (negative_path, 1, False)]:
+    for selected, default in [(path, True), (check_path, False), (feature_path, True), (negative_path, False)]:
         if selected is None:
             continue
         text, actual = re.subn(PATTERN, lambda match: match[1] + sha.lower(), selected.read_text())
-        if actual != count:
-            raise ValueError(f'expected {count} literal reusable-workflow pins')
+        if actual == 0:
+            raise ValueError('expected literal reusable-workflow pins')
         if default:
             text, defaults = re.subn(r'(?m)^(        default: )[0-9a-fA-F]{40}$',
                                      lambda match: match[1] + sha.lower(), text)

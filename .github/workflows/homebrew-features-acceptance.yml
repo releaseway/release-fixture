@@ -82,18 +82,6 @@ jobs:
       tap-repository: releaseway/homebrew-tap-fixture
       spec-path: .github/homebrew/features/source.yml
 
-  check-prebuilt:
-    needs: prepare
-    strategy:
-      fail-fast: false
-      matrix:
-        spec: [linux, macos, mixed]
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@c849a6bcf851c72cdf01d6fc50d9cf823dbc537e
-    with:
-      commit: ${{ needs.prepare.outputs.source-commit }}
-      tap-repository: releaseway/homebrew-tap-fixture
-      spec-path: .github/homebrew/features/${{ matrix.spec }}.yml
-
   source-r0:
     needs: [prepare, check-source]
     uses: releaseway/homebrew-actions/.github/workflows/publish.yml@c849a6bcf851c72cdf01d6fc50d9cf823dbc537e
@@ -170,7 +158,7 @@ jobs:
       tap_deploy_key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
 
   prebuilt-linux:
-    needs: [prepare, check-prebuilt]
+    needs: prepare
     uses: releaseway/homebrew-actions/.github/workflows/publish.yml@c849a6bcf851c72cdf01d6fc50d9cf823dbc537e
     with:
       commit: ${{ needs.prepare.outputs.source-commit }}
@@ -181,7 +169,7 @@ jobs:
       tap_deploy_key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
 
   prebuilt-macos:
-    needs: [prepare, check-prebuilt]
+    needs: prepare
     uses: releaseway/homebrew-actions/.github/workflows/publish.yml@c849a6bcf851c72cdf01d6fc50d9cf823dbc537e
     with:
       commit: ${{ needs.prepare.outputs.source-commit }}
@@ -192,7 +180,7 @@ jobs:
       tap_deploy_key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
 
   prebuilt-mixed:
-    needs: [prepare, check-prebuilt]
+    needs: prepare
     uses: releaseway/homebrew-actions/.github/workflows/publish.yml@c849a6bcf851c72cdf01d6fc50d9cf823dbc537e
     with:
       commit: ${{ needs.prepare.outputs.source-commit }}

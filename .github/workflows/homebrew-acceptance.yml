@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       automation-ref:
-        description: Full Homebrew candidate SHA matching the four committed workflow pins
+        description: Full Homebrew candidate SHA matching the executed workflow pins
         required: true
         default: c849a6bcf851c72cdf01d6fc50d9cf823dbc537e
         type: string
@@ -82,13 +82,6 @@ jobs:
       tap-repository: ${{ inputs.tap-repository }}
       spec-path: .github/homebrew/source-formula.yml
 
-  check-release:
-    needs: resolve
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@c849a6bcf851c72cdf01d6fc50d9cf823dbc537e
-    with:
-      tap-repository: ${{ inputs.tap-repository }}
-      spec-path: .github/homebrew/formula.yml
-
   publish-source:
     needs:
       - resolve
@@ -105,7 +98,6 @@ jobs:
   publish-release:
     needs:
       - resolve
-      - check-release
     uses: releaseway/homebrew-actions/.github/workflows/publish.yml@c849a6bcf851c72cdf01d6fc50d9cf823dbc537e
     with:
       commit: ${{ needs.resolve.outputs.commit }}

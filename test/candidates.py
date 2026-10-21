@@ -10,6 +10,17 @@ pin = runpy.run_path(str(ROOT / 'scripts/pin-homebrew-candidate.py'))['pin']
 
 
 class CandidateTests(unittest.TestCase):
+    def test_new_and_unrelated_jobs_do_not_change_pin_cardinality_contract(self):
+        text = (ROOT / '.github/workflows/homebrew-acceptance.yml').read_text()
+        current = re.search(r'uses: releaseway/homebrew-actions/[^@]+@([0-9a-f]{40})', text)[1]
+        verify(current, text + '\n  extra:\n    runs-on: ubuntu-24.04\n    steps: []\n')
+        extra = '\n  extra:\n    uses: releaseway/homebrew-actions/.github/workflows/check.yml@'
+        verify(current, text + extra + current + '\n')
+        with self.assertRaises(ValueError):
+            verify(current, text + extra + 'b' * 40 + '\n')
+        with self.assertRaises(ValueError):
+            verify(current, text + extra + 'main\n')
+
     def test_literal_pins_and_mismatch(self):
         text = (ROOT / '.github/workflows/homebrew-acceptance.yml').read_text()
         current = re.search(r'uses: releaseway/homebrew-actions/[^@]+@([0-9a-f]{40})', text)[1]
@@ -33,7 +44,9 @@ class CandidateTests(unittest.TestCase):
         self.assertIn("if: inputs.suite == 'all'", aggregate)
         self.assertIn('needs: [preview, pr, publish]', aggregate)
         self.assertNotIn('always()', aggregate)
-        self.assertEqual(text.count('git -C release-action rev-parse HEAD'), 3)
+        for role in ['preview', 'pr', 'publish']:
+            block = text.split('\n  ' + role + ':', 1)[1]
+            self.assertIn('git -C release-action rev-parse HEAD', re.split(r'(?m)^  [a-z][\w-]*:', block)[0])
         for path in ['homebrew-acceptance.yml', 'release-notes-acceptance.yml']:
             self.assertIn('releaseway-acceptance-${{ github.run_attempt }}', (ROOT / '.github/workflows' / path).read_text())
 
