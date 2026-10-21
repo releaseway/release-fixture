@@ -6,7 +6,7 @@ on:
       automation-ref:
         description: Full Homebrew candidate SHA matching the executed workflow pins
         required: true
-        default: d54a5e5dd6734c8eb053fb923c5e82b1438b5055
+        default: 8566bbdca5f5472aa34543c7746f1644d8450423
         type: string
       tag:
         description: Published release-fixture tag to validate and publish to the fixture tap.
@@ -77,7 +77,7 @@ jobs:
 
   check-source:
     needs: resolve
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@d54a5e5dd6734c8eb053fb923c5e82b1438b5055
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@8566bbdca5f5472aa34543c7746f1644d8450423
     with:
       tap-repository: ${{ inputs.tap-repository }}
       spec-path: .github/homebrew/source-formula.yml
@@ -86,7 +86,7 @@ jobs:
     needs:
       - resolve
       - check-source
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@d54a5e5dd6734c8eb053fb923c5e82b1438b5055
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@8566bbdca5f5472aa34543c7746f1644d8450423
     with:
       commit: ${{ needs.resolve.outputs.commit }}
       version: ${{ needs.resolve.outputs.version }}
@@ -98,7 +98,7 @@ jobs:
   publish-release:
     needs:
       - resolve
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@d54a5e5dd6734c8eb053fb923c5e82b1438b5055
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@8566bbdca5f5472aa34543c7746f1644d8450423
     with:
       commit: ${{ needs.resolve.outputs.commit }}
       version: ${{ needs.resolve.outputs.version }}

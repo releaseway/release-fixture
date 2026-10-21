@@ -6,7 +6,7 @@ on:
       automation-ref:
         description: Full reviewed Homebrew SHA matching every committed reusable workflow pin
         required: true
-        default: d54a5e5dd6734c8eb053fb923c5e82b1438b5055
+        default: 8566bbdca5f5472aa34543c7746f1644d8450423
         type: string
 
 permissions:
@@ -75,7 +75,7 @@ jobs:
 
   check-source:
     needs: prepare
-    uses: releaseway/homebrew-actions/.github/workflows/check.yml@d54a5e5dd6734c8eb053fb923c5e82b1438b5055
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@8566bbdca5f5472aa34543c7746f1644d8450423
     with:
       commit: ${{ needs.prepare.outputs.source-commit }}
       spec-commit: ${{ needs.prepare.outputs.spec-commit }}
@@ -84,7 +84,7 @@ jobs:
 
   source-r0:
     needs: [prepare, check-source]
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@d54a5e5dd6734c8eb053fb923c5e82b1438b5055
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@8566bbdca5f5472aa34543c7746f1644d8450423
     with:
       commit: ${{ needs.prepare.outputs.source-commit }}
       version: ${{ needs.prepare.outputs.version }}
@@ -115,7 +115,7 @@ jobs:
 
   source-r1:
     needs: [prepare, capture-r0]
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@d54a5e5dd6734c8eb053fb923c5e82b1438b5055
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@8566bbdca5f5472aa34543c7746f1644d8450423
     with:
       commit: ${{ needs.prepare.outputs.source-commit }}
       spec-commit: ${{ needs.prepare.outputs.spec-commit }}
@@ -147,7 +147,7 @@ jobs:
 
   source-rerun:
     needs: [prepare, capture-r1]
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@d54a5e5dd6734c8eb053fb923c5e82b1438b5055
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@8566bbdca5f5472aa34543c7746f1644d8450423
     with:
       commit: ${{ needs.prepare.outputs.source-commit }}
       spec-commit: ${{ needs.prepare.outputs.spec-commit }}
@@ -159,7 +159,7 @@ jobs:
 
   prebuilt-linux:
     needs: prepare
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@d54a5e5dd6734c8eb053fb923c5e82b1438b5055
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@8566bbdca5f5472aa34543c7746f1644d8450423
     with:
       commit: ${{ needs.prepare.outputs.source-commit }}
       version: ${{ needs.prepare.outputs.version }}
@@ -170,7 +170,7 @@ jobs:
 
   prebuilt-macos:
     needs: prepare
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@d54a5e5dd6734c8eb053fb923c5e82b1438b5055
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@8566bbdca5f5472aa34543c7746f1644d8450423
     with:
       commit: ${{ needs.prepare.outputs.source-commit }}
       version: ${{ needs.prepare.outputs.version }}
@@ -181,7 +181,7 @@ jobs:
 
   prebuilt-mixed:
     needs: prepare
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@d54a5e5dd6734c8eb053fb923c5e82b1438b5055
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@8566bbdca5f5472aa34543c7746f1644d8450423
     with:
       commit: ${{ needs.prepare.outputs.source-commit }}
       version: ${{ needs.prepare.outputs.version }}
