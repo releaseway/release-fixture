@@ -6,6 +6,10 @@ import { resolve,join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const versions=["0.9.0","1.0.0","1.1.0","1.3.0-beta.1","2.0.0","partial-v1.0.0"];
+export function supersedingInventory(records,prefix){
+  // Keep a full API page valid so the probe reaches membership verification.
+  return [{id:9007199254740000,tag_name:prefix+"1.1.1",draft:false,prerelease:true,immutable:false},...records.slice(1)];
+}
 export function payload(version) {
   if(version==="0.9.0")return {};
   const files={"bootstrap.sh":`#!/bin/sh\nprintf '%s\\n' 'release-set:${version}'\n`};

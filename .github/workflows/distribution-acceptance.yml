@@ -19,7 +19,7 @@ on:
 permissions:
   contents: read
 env:
-  AUTOMATION_SHA: 6f2d04d9c825e1efaed1a9089dc02be22ddef627
+  AUTOMATION_SHA: 7a6b3a583cecbdd4022c5bd3f8ca2dc7d5e9aed3
 concurrency:
   group: distribution-acceptance
   cancel-in-progress: false
@@ -175,7 +175,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@6f2d04d9c825e1efaed1a9089dc02be22ddef627 # candidate
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@7a6b3a583cecbdd4022c5bd3f8ca2dc7d5e9aed3 # candidate
     with:
       files: release-fixture_*.tar.gz
   pages-release:
@@ -186,7 +186,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@6f2d04d9c825e1efaed1a9089dc02be22ddef627 # candidate
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@7a6b3a583cecbdd4022c5bd3f8ca2dc7d5e9aed3 # candidate
     with:
       tag: ${{ needs.publish.outputs.tag }}
       config: .github/distribution/files.yml
@@ -198,7 +198,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@6f2d04d9c825e1efaed1a9089dc02be22ddef627 # candidate
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@7a6b3a583cecbdd4022c5bd3f8ca2dc7d5e9aed3 # candidate
     with:
       artifact-id: ${{ needs.publish.outputs.artifact-id }}
       files: |
@@ -267,7 +267,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@6f2d04d9c825e1efaed1a9089dc02be22ddef627 # candidate
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@7a6b3a583cecbdd4022c5bd3f8ca2dc7d5e9aed3 # candidate
     with:
       config: .github/distribution/release-set-initial.json
       site-artifact-id: ${{ needs.publish.outputs.set-docs-artifact-id }}
@@ -327,7 +327,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@6f2d04d9c825e1efaed1a9089dc02be22ddef627 # candidate
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@7a6b3a583cecbdd4022c5bd3f8ca2dc7d5e9aed3 # candidate
     with:
       config: .github/distribution/release-set-final.json
       site-artifact-id: ${{ needs.release-set-advance.outputs.site-artifact-id }}

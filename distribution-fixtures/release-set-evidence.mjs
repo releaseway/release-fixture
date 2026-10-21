@@ -3,7 +3,7 @@ import { appendFile,readFile,writeFile,mkdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { resolve,join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { build } from "./release-set-fixtures.mjs";
+import { build,supersedingInventory } from "./release-set-fixtures.mjs";
 
 const env=process.env,automation=resolve("automation");
 const {distribute}=await import(pathToFileURL(join(automation,"src/distribution/action.ts")));
@@ -24,7 +24,7 @@ const changed=new GhClient(env.GH_TOKEN,join(env.RUNNER_TEMP,"set-change")),json
 changed.download=async(...args)=>{await get(...args);downloaded=true;};
 changed.json=async(endpoint,projection)=>{
   const result=await json(endpoint,projection);
-  if(downloaded&&endpoint.includes("/releases?"))return [...result,{id:9007199254740000,tag_name:prefix+"1.1.1",draft:false,prerelease:true,immutable:false}];
+  if(downloaded&&endpoint.includes("/releases?")&&endpoint.endsWith("&page=1"))return supersedingInventory(result,prefix);
   return result;
 };
 await assert.rejects(distribute(sourceEnv,changed),/changed|superseded/i);

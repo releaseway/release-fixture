@@ -10,7 +10,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 api = runpy.run_path(str(ROOT / 'scripts/verify-release-set-receipts.py'))
 CANDIDATE, SOURCE, RUN, ATTEMPT = 'a' * 40, 'b' * 40, '20', '1'
-PREFIX = 'distribution-set-20261021-a8f724-v'
+PREFIX = json.loads((ROOT / '.github/distribution/release-set-initial.json').read_text())['releases']['tag-prefix']
 
 
 def hash_bytes(raw):
@@ -132,6 +132,20 @@ class ReleaseSetTests(unittest.TestCase):
         self.assertIn('name: release-set-evidence-${{ github.run_id }}-${{ github.run_attempt }}', text)
         self.assertLess(text.index('run: python3 distribution-fixtures/release-set-pages-evidence.py'), text.index('run: node distribution-fixtures/release-set-fixtures.mjs publish final'))
         self.assertIn('contents: read\n    steps:', text[text.index('  public-source:'):text.index('  pages-preflight:')])
+
+    def test_source_change_probe_preserves_full_page_contract(self):
+        helper = (ROOT / 'distribution-fixtures/release-set-fixtures.mjs').as_uri()
+        code = f"""
+          import assert from 'node:assert/strict';
+          import {{supersedingInventory}} from {json.dumps(helper)};
+          const page=Array.from({{length:100}},(_,i)=>({{id:i+1,tag_name:'old-'+i}}));
+          const changed=supersedingInventory(page,'fixture-v');
+          assert.equal(changed.length,100);
+          assert.equal(new Set(changed.map(r=>r.id)).size,100);
+          assert.ok(changed.some(r=>r.tag_name==='fixture-v1.1.1'));
+          assert.equal(page[0].tag_name,'old-0');
+        """
+        subprocess.run(['node', '--input-type=module', '-e', code], check=True)
 
 
 if __name__ == '__main__':
