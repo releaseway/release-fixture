@@ -16,6 +16,7 @@ BUILD = runpy.run_path(str(ROOT / "scripts/build-homebrew-feature-fixtures.py"))
 PREPARE = runpy.run_path(str(ROOT / "scripts/prepare-homebrew-feature-fixture.py"))
 PIN = runpy.run_path(str(ROOT / "scripts/pin-homebrew-candidate.py"))["pin"]
 VERIFY = runpy.run_path(str(ROOT / "scripts/verify-homebrew-candidate.py"))["verify"]
+NEGATIVE = runpy.run_path(str(ROOT / "scripts/verify-homebrew-feature-negatives.py"))
 
 
 def git(repo, *args):
@@ -138,6 +139,37 @@ class FeatureTests(unittest.TestCase):
         self.assertIn("scripts/resolve-homebrew-feature-negative.py", negative)
         self.assertIn("tap_deploy_key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}", negative)
         self.assertIn("releaseway-acceptance-${{ github.run_attempt }}", main)
+
+    def test_requirement_rejection_accepts_brew_wording_and_rejects_unrelated_errors(self):
+        script = (ROOT / "scripts/verify-homebrew-feature-consumer.sh").read_text()
+        ruby = script.split('REQUIRED="$required" ruby -e \'\n', 1)[1].split("\n' \"$scratch/unsupported.log\"", 1)[0]
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "unsupported.log"
+            cases = [("macOS", "This formula requires macOS.", True),
+                     ("arm64", "The arm64 architecture is required for this software.", True),
+                     ("Linux", "Linux is required for this software.", True),
+                     ("macOS", "Download macOS archive failed: HTTP 404", False),
+                     ("arm64", "This formula requires macOS.", False)]
+            for required, message, allowed in cases:
+                log.write_text(message)
+                result = subprocess.run(["ruby", "-e", ruby, str(log)], env={**os.environ, "REQUIRED": required}, capture_output=True)
+                self.assertEqual(result.returncode == 0, allowed, message)
+
+    def test_completed_job_logs_allow_and_strip_cli_control_sequences(self):
+        import sys
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            gh = root / "gh"
+            gh.write_text("#!" + sys.executable + "\nimport sys\n"
+                          "if '--allow-escape-sequences' not in sys.argv:\n"
+                          "    print('the response contains terminal escape sequences',file=sys.stderr);sys.exit(1)\n"
+                          "print('\\x1b[31mRefusing Formula revision downgrade\\x1b[0m')\n")
+            gh.chmod(0o755)
+            with patch.dict(os.environ, dict(PATH=str(root) + os.pathsep + os.environ["PATH"])):
+                self.assertEqual(NEGATIVE["job_log"]("releaseway/release-fixture", 7).strip(), "Refusing Formula revision downgrade")
+                with self.assertRaisesRegex(ValueError, "escape safety"):
+                    NEGATIVE["gh"](["api", "repos/releaseway/release-fixture/actions/jobs/7/logs"])
 
 
 if __name__ == "__main__":

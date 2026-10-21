@@ -1,6 +1,7 @@
 """Exercise expected public-workflow failures and actual native guards without accepting unrelated failures."""
 import json
 import os
+import re
 from pathlib import Path
 import runpy
 import subprocess
@@ -22,10 +23,26 @@ def require(value, message):
 
 
 def gh(args, raw=None):
-    result = subprocess.run(["gh", *args], input=raw, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=90)
-    require(result.returncode == 0, "GitHub negative-case lookup/dispatch failed")
+    attempts = 4 if args[-1].endswith("/logs") else 1
+    for attempt in range(attempts):
+        result = subprocess.run(["gh", *args], input=raw, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
+        if result.returncode == 0:
+            break
+        error = result.stderr.decode(errors="replace")
+        # Completed job logs can briefly lag the run's completed state.
+        if "HTTP 404" in error and attempt + 1 < attempts:
+            time.sleep(2)
+            continue
+        status = re.search(r"HTTP (\d{3})", error)
+        reason = status[0] if status else "CLI escape safety" if "escape sequences" in error else f"exit {result.returncode}"
+        raise ValueError("GitHub negative-case lookup/dispatch failed: " + reason)
     require(len(result.stdout) <= 1024 * 1024, "negative-case response exceeds limit")
     return result.stdout
+
+
+def job_log(repo, job_id):
+    raw = gh(["api", "--allow-escape-sequences", f"repos/{repo}/actions/jobs/{job_id}/logs"]).decode(errors="replace")
+    return re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", raw)
 
 
 def api(path):
@@ -73,7 +90,7 @@ def publication_failure(case, env):
     job_name, marker = MARKERS[case]
     failed = [job for job in jobs if job["conclusion"] == "failure" and job["name"].endswith("/ " + job_name)]
     require(len(failed) == 1, "negative child failed in an unrelated job")
-    log = gh(["api", f'repos/{repo}/actions/jobs/{failed[0]["id"]}/logs']).decode(errors="replace")
+    log = job_log(repo, failed[0]["id"])
     require(marker in log, "negative child did not reach the required rejection")
     require(tap_head() == before, "negative publication changed the fixture tap")
     return dict(case=case, state="rejected", before=before, after=before, run_id=child["id"],

@@ -99,7 +99,7 @@ if brew install --build-from-source "$bad_qualified" >"$scratch/unsupported.log"
 fi
 REQUIRED="$required" ruby -e '
   text = File.read(ARGV.fetch(0))
-  abort "Unsupported install failed for an unrelated reason: #{text}" unless text.match?(/required/i) && text.match?(/#{Regexp.escape(ENV.fetch("REQUIRED"))}/i)
+  abort "Unsupported install failed for an unrelated reason: #{text}" unless text.match?(/requir(?:ed|es)/i) && text.match?(/#{Regexp.escape(ENV.fetch("REQUIRED"))}/i)
 ' "$scratch/unsupported.log"
 [ -z "$(brew list --versions "$bad_qualified" 2>/dev/null || true)" ]
 
