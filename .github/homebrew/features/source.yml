@@ -1,0 +1,19 @@
+name: releaseway-source-platform-fixture
+desc: Native source fixture for Homebrew platform and revision acceptance
+homepage: https://github.com/releaseway/release-fixture
+license: MIT
+revision: 0
+platforms: [macos-arm64, macos-x86_64, linux-arm64, linux-x86_64]
+dependencies:
+  build: [go]
+install: |
+  ENV["CGO_ENABLED"] = "0"
+  cd "native-fixture" do
+    system "go", "build", "-buildvcs=false", *std_go_args(output: bin/"releaseway-native-fixture", ldflags: "-s -w -X main.version=#{version}")
+  end
+test: |
+  output = shell_output("#{bin}/releaseway-native-fixture --version")
+  assert_match "releaseway-native-fixture #{version}", output
+  os = OS.mac? ? "darwin" : "linux"
+  arch = Hardware::CPU.arm? ? "arm64" : "amd64"
+  assert_match "#{os}/#{arch}", output

@@ -1,0 +1,78 @@
+name: Homebrew expected feature rejection
+run-name: homebrew-negative-${{ inputs.case }}-${{ inputs.parent-run }}-${{ inputs.parent-attempt }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      automation-ref:
+        description: Full reviewed candidate matching the committed pin
+        required: true
+        type: string
+      source-commit:
+        description: Parent acceptance source SHA
+        required: true
+        type: string
+      spec-commit:
+        description: Parent packaging revision one SHA
+        required: true
+        type: string
+      version:
+        description: Isolated parent fixture version
+        required: true
+        type: string
+      parent-run:
+        description: Parent feature acceptance run
+        required: true
+        type: string
+      parent-attempt:
+        description: Parent feature acceptance attempt
+        required: true
+        type: string
+      case:
+        description: Expected rejection before a tap change
+        required: true
+        type: choice
+        options: [revision-decrease, source-replacement, missing-asset]
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      commit: ${{ steps.case.outputs.commit }}
+      spec-commit: ${{ steps.case.outputs.spec-commit }}
+      spec-path: ${{ steps.case.outputs.spec-path }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify candidate and isolated parent dataset
+        id: case
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATION_REF: ${{ inputs.automation-ref }}
+          SOURCE_COMMIT: ${{ inputs.source-commit }}
+          SPEC_COMMIT: ${{ inputs.spec-commit }}
+          VERSION: ${{ inputs.version }}
+          PARENT_RUN: ${{ inputs.parent-run }}
+          PARENT_ATTEMPT: ${{ inputs.parent-attempt }}
+          CASE: ${{ inputs.case }}
+        run: python3 scripts/resolve-homebrew-feature-negative.py
+
+  reject:
+    needs: resolve
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@dd8b63b5fb8bcd458a78f46af11d794b2c022bde
+    with:
+      commit: ${{ needs.resolve.outputs.commit }}
+      spec-commit: ${{ needs.resolve.outputs.spec-commit }}
+      version: ${{ inputs.version }}
+      tap-repository: releaseway/homebrew-tap-fixture
+      spec-path: ${{ needs.resolve.outputs.spec-path }}
+    secrets:
+      tap_deploy_key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}

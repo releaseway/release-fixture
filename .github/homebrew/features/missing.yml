@@ -1,0 +1,14 @@
+name: releaseway-prebuilt-linux-fixture
+desc: Missing native binary fixture for Homebrew failure acceptance
+homepage: https://github.com/releaseway/release-fixture
+license: MIT
+platforms: [linux-x86_64]
+distribution:
+  type: github-release
+  tag: "homebrew-features-{version}"
+  assets:
+    linux-x86_64: deliberately-missing-native-fixture.tar.gz
+install: |
+  bin.install "releaseway-native-fixture"
+test: |
+  system "#{bin}/releaseway-native-fixture", "--version"

@@ -1,0 +1,381 @@
+name: Homebrew revision and platform acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      automation-ref:
+        description: Full reviewed Homebrew SHA matching every committed reusable workflow pin
+        required: true
+        default: dd8b63b5fb8bcd458a78f46af11d794b2c022bde
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homebrew-features-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      source-commit: ${{ steps.dataset.outputs.source-commit }}
+      spec-commit: ${{ steps.dataset.outputs.spec-commit }}
+      version: ${{ steps.dataset.outputs.version }}
+      release-tag: ${{ steps.dataset.outputs.release-tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Verify candidate and literal workflow pins
+        env:
+          AUTOMATION_REF: ${{ inputs.automation-ref }}
+        run: python3 scripts/verify-homebrew-candidate.py
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+          cache: false
+      - name: Create isolated spec-only packaging revision
+        id: dataset
+        run: python3 scripts/prepare-homebrew-feature-fixture.py
+      - name: Build four real native executables
+        env:
+          VERSION: ${{ steps.dataset.outputs.version }}
+        run: python3 scripts/build-homebrew-feature-fixtures.py --version "$VERSION"
+      - name: Bind immutable fixture tag
+        uses: releaseway/actions/prepare@2abdf26c6f01c1e49da4ba5d85253847fe721fd9 # v0.6.3
+        with:
+          mode: tag
+          tag: ${{ steps.dataset.outputs.release-tag }}
+          commit: ${{ steps.dataset.outputs.source-commit }}
+      - name: Publish isolated immutable native assets
+        uses: releaseway/actions@2abdf26c6f01c1e49da4ba5d85253847fe721fd9 # v0.6.3
+        with:
+          tag: ${{ steps.dataset.outputs.release-tag }}
+          commit: ${{ steps.dataset.outputs.source-commit }}
+          assets: dist/homebrew-features/*.tar.gz
+          notes: file
+          notes-file: .github/homebrew/features/release-notes.md
+          prerelease: "true"
+          latest: "false"
+      - name: Preserve source/spec and build identities
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: homebrew-feature-dataset-${{ github.run_attempt }}
+          path: |
+            dist/homebrew-feature-dataset.json
+            dist/homebrew-features/native-build.json
+          retention-days: 30
+          if-no-files-found: error
+
+  check-source:
+    needs: prepare
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@dd8b63b5fb8bcd458a78f46af11d794b2c022bde
+    with:
+      commit: ${{ needs.prepare.outputs.source-commit }}
+      spec-commit: ${{ needs.prepare.outputs.spec-commit }}
+      tap-repository: releaseway/homebrew-tap-fixture
+      spec-path: .github/homebrew/features/source.yml
+
+  check-prebuilt:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        spec: [linux, macos, mixed]
+    uses: releaseway/homebrew-actions/.github/workflows/check.yml@dd8b63b5fb8bcd458a78f46af11d794b2c022bde
+    with:
+      commit: ${{ needs.prepare.outputs.source-commit }}
+      tap-repository: releaseway/homebrew-tap-fixture
+      spec-path: .github/homebrew/features/${{ matrix.spec }}.yml
+
+  source-r0:
+    needs: [prepare, check-source]
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@dd8b63b5fb8bcd458a78f46af11d794b2c022bde
+    with:
+      commit: ${{ needs.prepare.outputs.source-commit }}
+      version: ${{ needs.prepare.outputs.version }}
+      tap-repository: releaseway/homebrew-tap-fixture
+      spec-path: .github/homebrew/features/source.yml
+    secrets:
+      tap_deploy_key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+
+  capture-r0:
+    needs: [source-r0]
+    runs-on: ubuntu-24.04
+    outputs:
+      tap-commit: ${{ steps.capture.outputs.tap-commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/homebrew-tap-fixture
+          path: tap
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Freeze exact published revision r0
+        id: capture
+        env:
+          EXPECTED_SHA256: ${{ needs.source-r0.outputs.formula-sha256 }}
+        run: |
+          ruby -rdigest -e 'abort "Published Formula digest differs" unless Digest::SHA256.file("tap/Formula/releaseway-source-platform-fixture.rb").hexdigest == ENV.fetch("EXPECTED_SHA256")'
+          echo "tap-commit=$(git -C tap rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  source-r1:
+    needs: [prepare, capture-r0]
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@dd8b63b5fb8bcd458a78f46af11d794b2c022bde
+    with:
+      commit: ${{ needs.prepare.outputs.source-commit }}
+      spec-commit: ${{ needs.prepare.outputs.spec-commit }}
+      version: ${{ needs.prepare.outputs.version }}
+      tap-repository: releaseway/homebrew-tap-fixture
+      spec-path: .github/homebrew/features/source.yml
+    secrets:
+      tap_deploy_key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+
+  capture-r1:
+    needs: [source-r1]
+    runs-on: ubuntu-24.04
+    outputs:
+      tap-commit: ${{ steps.capture.outputs.tap-commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/homebrew-tap-fixture
+          path: tap
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Freeze exact published revision r1
+        id: capture
+        env:
+          EXPECTED_SHA256: ${{ needs.source-r1.outputs.formula-sha256 }}
+        run: |
+          ruby -rdigest -e 'abort "Published Formula digest differs" unless Digest::SHA256.file("tap/Formula/releaseway-source-platform-fixture.rb").hexdigest == ENV.fetch("EXPECTED_SHA256")'
+          echo "tap-commit=$(git -C tap rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  source-rerun:
+    needs: [prepare, capture-r1]
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@dd8b63b5fb8bcd458a78f46af11d794b2c022bde
+    with:
+      commit: ${{ needs.prepare.outputs.source-commit }}
+      spec-commit: ${{ needs.prepare.outputs.spec-commit }}
+      version: ${{ needs.prepare.outputs.version }}
+      tap-repository: releaseway/homebrew-tap-fixture
+      spec-path: .github/homebrew/features/source.yml
+    secrets:
+      tap_deploy_key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+
+  prebuilt-linux:
+    needs: [prepare, check-prebuilt]
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@dd8b63b5fb8bcd458a78f46af11d794b2c022bde
+    with:
+      commit: ${{ needs.prepare.outputs.source-commit }}
+      version: ${{ needs.prepare.outputs.version }}
+      tap-repository: releaseway/homebrew-tap-fixture
+      spec-path: .github/homebrew/features/linux.yml
+    secrets:
+      tap_deploy_key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+
+  prebuilt-macos:
+    needs: [prepare, check-prebuilt]
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@dd8b63b5fb8bcd458a78f46af11d794b2c022bde
+    with:
+      commit: ${{ needs.prepare.outputs.source-commit }}
+      version: ${{ needs.prepare.outputs.version }}
+      tap-repository: releaseway/homebrew-tap-fixture
+      spec-path: .github/homebrew/features/macos.yml
+    secrets:
+      tap_deploy_key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+
+  prebuilt-mixed:
+    needs: [prepare, check-prebuilt]
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@dd8b63b5fb8bcd458a78f46af11d794b2c022bde
+    with:
+      commit: ${{ needs.prepare.outputs.source-commit }}
+      version: ${{ needs.prepare.outputs.version }}
+      tap-repository: releaseway/homebrew-tap-fixture
+      spec-path: .github/homebrew/features/mixed.yml
+    secrets:
+      tap_deploy_key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+
+  snapshot:
+    needs: [source-r0, source-r1, source-rerun, prebuilt-linux, prebuilt-macos, prebuilt-mixed]
+    runs-on: ubuntu-24.04
+    outputs:
+      tap-commit: ${{ steps.snapshot.outputs.tap-commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/homebrew-tap-fixture
+          path: tap
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require unchanged rerun and all published bytes
+        id: snapshot
+        env:
+          INITIAL_SHA: ${{ needs.source-r0.outputs.formula-sha256 }}
+          UPDATED_SHA: ${{ needs.source-r1.outputs.formula-sha256 }}
+          RERUN_SHA: ${{ needs.source-rerun.outputs.formula-sha256 }}
+          RERUN_STATE: ${{ needs.source-rerun.outputs.state }}
+          LINUX_SHA: ${{ needs.prebuilt-linux.outputs.formula-sha256 }}
+          MACOS_SHA: ${{ needs.prebuilt-macos.outputs.formula-sha256 }}
+          MIXED_SHA: ${{ needs.prebuilt-mixed.outputs.formula-sha256 }}
+        run: |
+          set -euo pipefail
+          [ "$INITIAL_SHA" != "$UPDATED_SHA" ]
+          [ "$RERUN_SHA" = "$UPDATED_SHA" ]
+          [ "$RERUN_STATE" = unchanged ]
+          ruby -rdigest -e '
+            {"releaseway-source-platform-fixture"=>"UPDATED_SHA", "releaseway-prebuilt-linux-fixture"=>"LINUX_SHA",
+             "releaseway-prebuilt-macos-fixture"=>"MACOS_SHA", "releaseway-prebuilt-mixed-fixture"=>"MIXED_SHA"}.each do |name, key|
+              abort "Published Formula digest differs" unless Digest::SHA256.file("tap/Formula/#{name}.rb").hexdigest == ENV.fetch(key)
+            end'
+          echo "tap-commit=$(git -C tap rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  consumers:
+    needs: [prepare, capture-r0, capture-r1, snapshot]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-arm64
+            runner: macos-latest
+          - platform: macos-x86_64
+            runner: macos-15-intel
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+          - platform: linux-x86_64
+            runner: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Homebrew
+        if: runner.os == 'Linux'
+        uses: Homebrew/actions/setup-homebrew@4790763c0a3ba4036f72634dc079c4a7dfcd4878 # main
+        with:
+          stable: true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/homebrew-tap-fixture
+          ref: ${{ needs.snapshot.outputs.tap-commit }}
+          path: tap
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install revision zero then upgrade the same keg to revision one
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          SOURCE_COMMIT: ${{ needs.prepare.outputs.source-commit }}
+          SPEC_COMMIT: ${{ needs.prepare.outputs.spec-commit }}
+          AUTOMATION_REF: ${{ inputs.automation-ref }}
+          TAP_ZERO: ${{ needs.capture-r0.outputs.tap-commit }}
+          TAP_ONE: ${{ needs.capture-r1.outputs.tap-commit }}
+          TAP_FINAL: ${{ needs.snapshot.outputs.tap-commit }}
+        run: bash scripts/verify-homebrew-feature-consumer.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: homebrew-feature-consumer-${{ matrix.platform }}-${{ github.run_attempt }}
+          path: consumer.json
+          retention-days: 30
+          if-no-files-found: error
+
+  negative-cases:
+    needs: [prepare, snapshot, source-r1]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/homebrew-actions
+          ref: ${{ inputs.automation-ref }}
+          path: automation
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/homebrew-tap-fixture
+          ref: ${{ needs.snapshot.outputs.tap-commit }}
+          path: tap
+          persist-credentials: false
+      - uses: Homebrew/actions/setup-homebrew@4790763c0a3ba4036f72634dc079c4a7dfcd4878 # main
+        with:
+          stable: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.source-r1.outputs.validation-artifact-id }}
+          path: source-validation
+      - name: Verify rejected publications and native evidence failures leave tap unchanged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATION_REF: ${{ inputs.automation-ref }}
+          SOURCE_COMMIT: ${{ needs.prepare.outputs.source-commit }}
+          SPEC_COMMIT: ${{ needs.prepare.outputs.spec-commit }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release-tag }}
+        run: python3 scripts/verify-homebrew-feature-negatives.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: homebrew-feature-negatives-${{ github.run_attempt }}
+          path: negatives.json
+          retention-days: 30
+          if-no-files-found: error
+
+  acceptance:
+    needs: [prepare, source-r0, source-r1, source-rerun, prebuilt-linux, prebuilt-macos, prebuilt-mixed, consumers, negative-cases, capture-r0, capture-r1, snapshot]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout the reviewed native receipt verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/homebrew-actions
+          ref: ${{ inputs.automation-ref }}
+          path: automation
+          persist-credentials: false
+      - name: Download fixture identities and consumer proofs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: homebrew-feature-*
+          path: evidence
+      - name: Verify and preserve original invocation receipt artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATION_REF: ${{ inputs.automation-ref }}
+          SOURCE_COMMIT: ${{ needs.prepare.outputs.source-commit }}
+          SPEC_COMMIT: ${{ needs.prepare.outputs.spec-commit }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release-tag }}
+          TAP_ZERO: ${{ needs.capture-r0.outputs.tap-commit }}
+          TAP_ONE: ${{ needs.capture-r1.outputs.tap-commit }}
+          TAP_FINAL: ${{ needs.snapshot.outputs.tap-commit }}
+          SOURCE_ZERO_ARTIFACT: ${{ needs.source-r0.outputs.validation-artifact-id }}
+          SOURCE_ONE_ARTIFACT: ${{ needs.source-r1.outputs.validation-artifact-id }}
+          SOURCE_RERUN_ARTIFACT: ${{ needs.source-rerun.outputs.validation-artifact-id }}
+          PREBUILT_LINUX_ARTIFACT: ${{ needs.prebuilt-linux.outputs.validation-artifact-id }}
+          PREBUILT_MACOS_ARTIFACT: ${{ needs.prebuilt-macos.outputs.validation-artifact-id }}
+          PREBUILT_MIXED_ARTIFACT: ${{ needs.prebuilt-mixed.outputs.validation-artifact-id }}
+          RERUN_STATE: ${{ needs.source-rerun.outputs.state }}
+        run: python3 scripts/collect-homebrew-feature-evidence.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: releaseway-acceptance-${{ github.run_attempt }}
+          path: acceptance.json
+          retention-days: 30
+          if-no-files-found: error

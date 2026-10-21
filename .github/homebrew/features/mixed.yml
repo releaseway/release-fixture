@@ -1,0 +1,16 @@
+name: releaseway-prebuilt-mixed-fixture
+desc: Native asymmetric binary fixture for Homebrew platform acceptance
+homepage: https://github.com/releaseway/release-fixture
+license: MIT
+platforms: [macos-arm64, linux-x86_64]
+distribution:
+  type: github-release
+  tag: "homebrew-features-{version}"
+  assets:
+    macos-arm64: releaseway-native-fixture_macos_arm64.tar.gz
+    linux-x86_64: releaseway-native-fixture_linux_x86_64.tar.gz
+install: |
+  bin.install "releaseway-native-fixture"
+test: |
+  target = OS.mac? ? "darwin/arm64" : "linux/amd64"
+  assert_match "releaseway-native-fixture #{version} #{target}", shell_output("#{bin}/releaseway-native-fixture --version")

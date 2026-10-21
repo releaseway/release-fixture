@@ -1,0 +1,14 @@
+name: releaseway-prebuilt-linux-fixture
+desc: Native Linux binary fixture for Homebrew platform acceptance
+homepage: https://github.com/releaseway/release-fixture
+license: MIT
+platforms: [linux-x86_64]
+distribution:
+  type: github-release
+  tag: "homebrew-features-{version}"
+  assets:
+    linux-x86_64: releaseway-native-fixture_linux_x86_64.tar.gz
+install: |
+  bin.install "releaseway-native-fixture"
+test: |
+  assert_match "releaseway-native-fixture #{version} linux/amd64", shell_output("#{bin}/releaseway-native-fixture --version")
