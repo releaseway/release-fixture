@@ -39,6 +39,13 @@ jobs:
         run: python3 test/expected-failure.py
       - name: App-free fixture contracts
         run: python3 test/app-free.py
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Distribution fixture contracts
+        run: |
+          python3 test/distribution.py
+          python3 test/distribution-release-set.py
       - name: Whitespace
         run: git diff --check
 

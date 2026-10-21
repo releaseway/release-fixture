@@ -1,0 +1,18 @@
+{
+  "schema": 2,
+  "releases": {
+    "tag-prefix": "distribution-set-20261021-a8f724-v",
+    "range": ">=0.9.0 <1.2.0 || =1.3.0-beta.1",
+    "include-prereleases": true,
+    "on-empty": "skip"
+  },
+  "files": [
+    {"from": "bootstrap.sh", "to": "install.sh", "required": true},
+    {"from": "diagnose.ps1", "to": "install.ps1", "required": true},
+    {"from": "metadata.json", "to": "metadata.json", "required": false}
+  ],
+  "aliases": {
+    "tag": "distribution-set-20261021-a8f724-v1.1.0",
+    "files": [{"from": "install.sh", "to": "install.sh"}, {"from": "install.ps1", "to": "install.ps1"}]
+  }
+}

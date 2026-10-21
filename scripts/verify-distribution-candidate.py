@@ -11,8 +11,8 @@ def verify_pin(candidate, text):
     if not re.fullmatch(r'[a-f0-9]{40}', candidate):
         raise ValueError('candidate must be a full lowercase commit SHA')
     pins = re.findall(r'uses: releaseway/actions/\.github/workflows/distribute-pages\.yml@([a-f0-9]{40})', text)
-    if len(pins) != 3 or any(p != candidate for p in pins):
-        raise ValueError('all three Pages workflow pins must match the candidate')
+    if len(pins) != 5 or any(p != candidate for p in pins):
+        raise ValueError('all five Pages workflow pins must match the candidate')
     if f'AUTOMATION_SHA: {candidate}' not in text:
         raise ValueError('checkout automation pin must match reusable workflow pins')
 

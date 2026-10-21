@@ -7,7 +7,9 @@ on:
       - .github/distribution/**
       - distribution-fixtures/**
       - scripts/verify-distribution-candidate.py
+      - scripts/verify-release-set-*.py
       - test/distribution.py
+      - test/distribution-release-set.py
   workflow_dispatch:
     inputs:
       pages:
@@ -17,7 +19,10 @@ on:
 permissions:
   contents: read
 env:
-  AUTOMATION_SHA: 2abdf26c6f01c1e49da4ba5d85253847fe721fd9
+  AUTOMATION_SHA: 5acbeec50469914d3951f5397364c41a98237ab8
+concurrency:
+  group: distribution-acceptance
+  cancel-in-progress: false
 jobs:
   publish:
     runs-on: ubuntu-24.04
@@ -26,6 +31,7 @@ jobs:
     outputs:
       tag: ${{ steps.publish.outputs.tag }}
       artifact-id: ${{ steps.artifact.outputs.artifact-id }}
+      set-docs-artifact-id: ${{ steps.set-docs.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -67,6 +73,18 @@ jobs:
           tag="distribution-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           gh release create "$tag" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false --title "$tag" --notes 'Isolated generic distribution acceptance fixtures.'
           printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
+      - name: Publish isolated initial release set
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node distribution-fixtures/release-set-fixtures.mjs publish initial
+      - id: set-docs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-set-docs-initial-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-set-site-initial
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
   public-source:
     needs: publish
     strategy:
@@ -124,6 +142,17 @@ jobs:
           path: distribution-evidence/receipt.json
           if-no-files-found: error
           retention-days: 7
+      - name: Observe release-set merge, rerun, partial, tamper and source-change rejection
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DISTRIBUTION_REPORT: ${{ steps.distribution.outputs.report }}
+        run: node distribution-fixtures/release-set-evidence.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-set-core-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-set-evidence/receipt.json
+          if-no-files-found: error
+          retention-days: 7
   pages-preflight:
     if: inputs.pages == true
     needs: [publish, public-source]
@@ -146,7 +175,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@2abdf26c6f01c1e49da4ba5d85253847fe721fd9 # v0.6.3
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@5acbeec50469914d3951f5397364c41a98237ab8 # candidate
     with:
       files: release-fixture_*.tar.gz
   pages-release:
@@ -157,7 +186,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@2abdf26c6f01c1e49da4ba5d85253847fe721fd9 # v0.6.3
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@5acbeec50469914d3951f5397364c41a98237ab8 # candidate
     with:
       tag: ${{ needs.publish.outputs.tag }}
       config: .github/distribution/files.yml
@@ -169,7 +198,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@2abdf26c6f01c1e49da4ba5d85253847fe721fd9 # v0.6.3
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@5acbeec50469914d3951f5397364c41a98237ab8 # candidate
     with:
       artifact-id: ${{ needs.publish.outputs.artifact-id }}
       files: |
@@ -226,5 +255,124 @@ jobs:
         with:
           name: distribution-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: evidence
+          if-no-files-found: error
+          retention-days: 7
+  release-set-initial:
+    # The legacy evidence job probes the artifact deployment before this replaces it.
+    if: inputs.pages == true
+    needs: [publish, evidence]
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+      pages: write
+      id-token: write
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@5acbeec50469914d3951f5397364c41a98237ab8 # candidate
+    with:
+      config: .github/distribution/release-set-initial.json
+      site-artifact-id: ${{ needs.publish.outputs.set-docs-artifact-id }}
+  release-set-advance:
+    needs: [publish, release-set-initial]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      site-artifact-id: ${{ steps.docs.outputs.artifact-id }}
+      phase-artifact-id: ${{ steps.phase.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/actions
+          ref: ${{ env.AUTOMATION_SHA }}
+          path: automation
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Observe initial served bytes before advancing the site
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SET_PHASE: initial
+          PAGES_OUTPUTS: ${{ toJSON(needs.release-set-initial.outputs) }}
+          SITE_ARTIFACT_ID: ${{ needs.publish.outputs.set-docs-artifact-id }}
+        run: python3 distribution-fixtures/release-set-pages-evidence.py
+      - id: phase
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-set-phase-initial-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-set-pages/initial/receipt.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Add version C and build fresh documentation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node distribution-fixtures/release-set-fixtures.mjs publish final
+      - id: docs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-set-docs-final-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-set-site-final
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+  release-set-final:
+    needs: release-set-advance
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+      pages: write
+      id-token: write
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@5acbeec50469914d3951f5397364c41a98237ab8 # candidate
+    with:
+      config: .github/distribution/release-set-final.json
+      site-artifact-id: ${{ needs.release-set-advance.outputs.site-artifact-id }}
+  release-set-evidence:
+    needs: [publish, release-set-advance, release-set-final]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: releaseway/actions
+          ref: ${{ env.AUTOMATION_SHA }}
+          path: automation
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-set-core-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-set-core
+          digest-mismatch: error
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.release-set-advance.outputs.phase-artifact-id }}
+          path: release-set-pages/initial
+          digest-mismatch: error
+      - name: Observe final served bytes and archive complete acceptance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SET_PHASE: final
+          PAGES_OUTPUTS: ${{ toJSON(needs.release-set-final.outputs) }}
+          SITE_ARTIFACT_ID: ${{ needs.release-set-advance.outputs.site-artifact-id }}
+        run: |
+          python3 distribution-fixtures/release-set-pages-evidence.py
+          python3 distribution-fixtures/release-set-aggregate.py
+          python3 scripts/verify-release-set-candidate.py --candidate "$AUTOMATION_SHA" --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" --receipt release-set-acceptance/acceptance.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-set-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-set-acceptance/acceptance.json
           if-no-files-found: error
           retention-days: 7
