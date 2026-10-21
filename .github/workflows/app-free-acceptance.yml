@@ -189,7 +189,7 @@ jobs:
   homebrew:
     if: ${{ inputs.homebrew }}
     needs: release
-    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@8fe42d36a7f93a3c399461efbe571fc695d4cdc6
+    uses: releaseway/homebrew-actions/.github/workflows/publish.yml@c849a6bcf851c72cdf01d6fc50d9cf823dbc537e
     with:
       tap-repository: releaseway/homebrew-tap-fixture
       spec-path: .github/homebrew/app-free-formula.yml
@@ -206,7 +206,7 @@ jobs:
       deployments: read
       pages: write
       id-token: write
-    uses: releaseway/actions/.github/workflows/distribute-pages.yml@2abdf26c6f01c1e49da4ba5d85253847fe721fd9
+    uses: releaseway/actions/.github/workflows/distribute-pages.yml@ffbe66ca35cbd7edcd6a10806228db76b6a84baf
     with:
       tag: ${{ needs.release.outputs.tag }}
       files: version.txt
