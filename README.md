@@ -86,6 +86,12 @@ Only these matching test tap/credential pairs are accepted. Keep the smoke tap
 and its dedicated credential available for repeatable starter acceptance; they
 are separate from the permanent fixture tap and any production repository.
 
+The unreleased revision/platform campaign uses a separate set of Formula names and
+real Go binaries. See [the feature campaign guide](homebrew-features/README.md) for
+four native upgrades, single/asymmetric architectures, rejection cases and original
+native receipt preservation. Run it and the legacy campaign sequentially against
+the shared fixture tap.
+
 ## Local validation
 
 ```sh
@@ -93,6 +99,7 @@ python3 test/fixtures.py
 python3 test/candidates.py
 python3 test/expected-failure.py
 python3 test/distribution.py
+python3 test/homebrew-features.py
 ```
 
 CI also lints all fixture workflows.
@@ -110,7 +117,7 @@ pending or failed run.
 | --- | --- | --- |
 | `releaseway/actions` | `test.yml` + `distribution.yml` | `release-notes-acceptance.yml`, `suite=all`, plus full `distribution-acceptance.yml` with Pages enabled |
 | `releaseway/npm-actions` | `check.yml` including platform matrix | npm fixture `publish.yml` staged + `direct.yml` fresh published; at least one `version-source=git-tag` |
-| `releaseway/homebrew-actions` | `test.yml` | `homebrew-acceptance.yml` source + release Formulae |
+| `releaseway/homebrew-actions` | `test.yml` | `homebrew-acceptance.yml` source + release Formulae and `homebrew-features-acceptance.yml` 21-case revision/platform campaign |
 
 For actions, supply full `action-ref` and an existing `notes-acceptance-*`
 `publish-tag`. All three suites must succeed. Individual suites remain diagnostic.
@@ -121,11 +128,15 @@ input are required when selecting concurrency above `1`.
 
 For Homebrew, reusable workflow refs must be literal. Before committing the fixture
 candidate, run `python3 scripts/pin-homebrew-candidate.py <full-candidate-sha>`.
-Review the six changed refs and dispatch default, prepare the corresponding
+Review the 15 changed refs and two dispatch defaults, prepare the corresponding
 fixture tag and immutable Release, then dispatch from that fixture tag with matching `automation-ref` and
 `tag`. A mismatch fails before tap writes. Internal scripts/rendering come from the
 pinned automation checkout. Reruns can report unchanged Formulae; rollback uses the
 automation's explicit `allow-downgrade` policy.
+
+Dispatch the feature campaign from fixture main after committing the pins; dispatch
+the legacy campaign from its prepared fixture tag. Follow the
+[feature guide](homebrew-features/README.md) for their separate source/spec datasets.
 
 Follow the [npm candidate guide](https://github.com/releaseway/npm-actions-fixture#candidate-acceptance)
 for fresh versions and tag-derived prereleases. Stage success proves submission;
@@ -135,7 +146,12 @@ Complete successful runs upload `releaseway-acceptance-<run_attempt>` containing
 `acceptance.json`, retained for 30 days. Readiness compares provider repository,
 workflow, fixture commit, current attempt and success with the JSON and candidate
 SHA. Expired/missing artifacts, another SHA, partial suites and failed runs fail.
-Preserve run IDs; rerun acceptance when evidence expires.
+Preserve run IDs. Before a new collection, rerun complete acceptance when original
+evidence expires. Distribution evidence has a separate 7-day artifact lifetime;
+native Homebrew and final acceptance artifacts retain 30 days. The unreleased
+official publication workflows preserve original ZIPs in an immutable approval
+asset, so already-archived approvals survive later Actions expiry. See
+[archive verification and recovery](https://github.com/releaseway/actions/blob/main/docs/release-evidence.md).
 
 Release workflows request `actions: read` plus existing `contents: write`. If their
 token cannot download cross-repository artifacts, configure optional
