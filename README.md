@@ -149,6 +149,7 @@ Complete successful runs upload `releaseway-acceptance-<run_attempt>` containing
 `acceptance.json`, retained for 30 days. Readiness compares provider repository,
 workflow, fixture commit, current attempt and success with the JSON and candidate
 SHA. Expired/missing artifacts, another SHA, partial suites and failed runs fail.
+
 Preserve run IDs. Before a new collection, rerun complete acceptance when original
 evidence expires. Distribution evidence has a separate 7-day artifact lifetime;
 native Homebrew and final acceptance artifacts retain 30 days. The
@@ -189,6 +190,7 @@ fresh dataset prefixes and original provider-artifact checks.
 and stable on the same original fixture commit, builds deterministic version and
 platform assets, publishes both immutable Releases, and checks missing-tag resolve
 without writes. The isolated `app-free-v` namespace preserves existing fixture tags.
+
 For the complete readiness gate, enable both `homebrew` and `pages`: the existing
 tap deploy key publishes only `release-fixture-app-free`, and the existing Pages
 workflow verifies the served stable version. This updates the dedicated fixture

@@ -11,6 +11,7 @@ The default run publishes a new `distribution-<run>-<attempt>` prerelease with
 reads, cross-repository read access, tamper rejection, repeat preparation and
 native fixture scripts on Linux, macOS and Windows. It also checks the release-set
 merge and its deterministic rejection cases on those platforms. It does not deploy Pages.
+
 The [consumer guide](https://github.com/releaseway/actions/tree/main/distribute)
 describes the source interfaces and explains how to select a supporting ref.
 
@@ -83,7 +84,9 @@ Success prints `complete current distribution evidence verified`. For a run with
 Pages disabled, add `--public-only`; that validates only the source component and
 must not be reported as complete Pages acceptance. Native and aggregate receipts
 are retained for seven days; legacy source and individual Pages report artifacts last
-one day. Expired source/report artifacts can prevent partial reruns even while
+one day.
+
+Expired source/report artifacts can prevent partial reruns even while
 aggregate receipts remain available. Missing required artifacts need a fresh run.
 
 Verify the separate release-set aggregate from that same run:
@@ -108,6 +111,7 @@ campaign exercise these prerelease fixtures without relabeling them as stable.
 To test another automation candidate, update `AUTOMATION_SHA` and all literal
 reusable-workflow refs together in `.github/workflows/distribution-acceptance.yml`.
 Also choose the fresh campaign prefix described above.
+
 There is no `action-ref` dispatch input for this campaign. Before committing, run:
 
 ```sh

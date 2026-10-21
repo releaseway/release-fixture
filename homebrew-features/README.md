@@ -4,7 +4,9 @@ Use this campaign to approve a homebrew-actions candidate. It operates
 only on `releaseway/homebrew-tap-fixture`, using `HOMEBREW_TAP_DEPLOY_KEY`. It creates
 isolated `homebrew-features-*` immutable prereleases with `latest=false` and
 `homebrew-feature-spec-*` branches. Consumers and the final collector have no tap
-write credential. Keep other campaigns that write this tap idle while it runs:
+write credential.
+
+Keep other campaigns that write this tap idle while it runs:
 the negative cases compare the entire tap head before and after each rejection.
 
 ## Pin and run the candidate
@@ -32,7 +34,9 @@ gh workflow run homebrew-features-acceptance.yml \
 ```
 
 It fixes source A to the caller SHA, builds real Go ELF/Mach-O binaries for
-four targets, and publishes deterministic archives. A separate Git index creates
+four targets, and publishes deterministic archives.
+
+A separate Git index creates
 B, a direct child of A changing only the source spec's `revision: 0` to `1`.
 The caller checkout/index and upstream program stay intact. Version is
 `1.<run_id>.<attempt>`; rerun **all jobs** for a fresh attempt. Downloading older
@@ -64,6 +68,7 @@ The final `releaseway-acceptance-<attempt>` artifact contains one `acceptance.js
 It records 21 required cases, four upgrade consumers, five rejection proofs and
 six original native aggregate ZIPs with their provider metadata/digests: source
 r0/r1/rerun plus the three prebuilt invocations, totaling 16 native receipts.
+
 There is no approval artifact when required jobs fail or skip. Native invocation
 and individual receipt artifacts also retain 30 days.
 
