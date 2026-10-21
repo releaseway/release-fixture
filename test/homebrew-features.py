@@ -1,5 +1,6 @@
 """Feature fixture contracts, real binary ABI/reproducibility and spec-only Git preparation."""
 import contextlib
+import copy
 from hashlib import sha256
 import io
 import json
@@ -34,6 +35,26 @@ def cwd(path):
 
 
 class FeatureTests(unittest.TestCase):
+    def test_active_negative_job_accepts_queued_parent_but_rejects_stale_or_inactive_parent(self):
+        run = dict(id=17, head_sha="a" * 40, run_attempt=2,
+                   path=".github/workflows/homebrew-features-acceptance.yml",
+                   event="workflow_dispatch", status="queued", conclusion=None)
+        jobs = [dict(name="negative-cases", run_id=17, status="in_progress", conclusion=None)]
+        verify_parent = NEGATIVE["verify_parent"]
+        for status in ["queued", "waiting", "pending", "in_progress"]:
+            verify_parent("releaseway/release-fixture", dict(run, status=status), "a" * 40, 17, 2, jobs)
+        for changes in [dict(status="completed"), dict(conclusion="failure"), dict(run_attempt=1),
+                        dict(head_sha="b" * 40), dict(id=18), dict(event="push"), dict(path="other.yml")]:
+            with self.assertRaises(ValueError):
+                verify_parent("releaseway/release-fixture", dict(run, **changes), "a" * 40, 17, 2, jobs)
+        for changes in [dict(status="queued"), dict(conclusion="failure"), dict(run_id=18)]:
+            altered = copy.deepcopy(jobs)
+            altered[0].update(changes)
+            with self.assertRaises(ValueError):
+                verify_parent("releaseway/release-fixture", run, "a" * 40, 17, 2, altered)
+        with self.assertRaises(ValueError):
+            verify_parent("releaseway/release-fixture", run, "a" * 40, 17, 2, [])
+
     def test_all_candidate_pins_and_defaults_are_updated_before_writes(self):
         paths = [".github/workflows/homebrew-acceptance.yml", ".github/workflows/test.yml",
                  ".github/workflows/homebrew-features-acceptance.yml", ".github/workflows/homebrew-features-negative.yml"]

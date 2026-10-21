@@ -19,10 +19,16 @@ if parent <= 0 or attempt <= 0 or env["VERSION"] != f"1.{parent}.{attempt}":
 def api(path):
     return json.loads(subprocess.check_output(["gh", "api", path], stderr=subprocess.DEVNULL, timeout=60))
 parent_run = api(f'repos/{env["GITHUB_REPOSITORY"]}/actions/runs/{parent}')
-if (env["GITHUB_REPOSITORY"] != "releaseway/release-fixture" or parent_run["head_sha"] != source
-        or parent_run["run_attempt"] != attempt or parent_run["path"] != ".github/workflows/homebrew-features-acceptance.yml"
-        or parent_run["event"] != "workflow_dispatch" or parent_run["status"] != "in_progress"):
-    raise ValueError("negative case must belong to a currently running feature acceptance")
+jobs = []
+for page in range(1, 101):
+    batch = api(f'repos/{env["GITHUB_REPOSITORY"]}/actions/runs/{parent}/attempts/{attempt}/jobs?per_page=100&page={page}')["jobs"]
+    jobs.extend(batch)
+    if len(batch) < 100:
+        break
+else:
+    raise ValueError("parent job pagination limit exceeded")
+runpy.run_path(str(ROOT / "scripts/verify-homebrew-feature-negatives.py"))["verify_parent"](
+    env["GITHUB_REPOSITORY"], parent_run, source, parent, attempt, jobs)
 tap = api('repos/releaseway/homebrew-tap-fixture/contents/Formula/releaseway-source-platform-fixture.rb')
 formula = base64.b64decode(tap['content'], validate=False).decode()
 if (f'# releaseway-version: {env["VERSION"]}\n' not in formula

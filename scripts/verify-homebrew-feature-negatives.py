@@ -22,6 +22,21 @@ def require(value, message):
         raise ValueError(message)
 
 
+def verify_parent(repository, run, source, parent, attempt, jobs):
+    require(repository == "releaseway/release-fixture" and run["id"] == parent
+            and run["head_sha"] == source and run["run_attempt"] == attempt
+            and run["path"] == ".github/workflows/homebrew-features-acceptance.yml"
+            and run["event"] == "workflow_dispatch"
+            and run["status"] in {"requested", "queued", "pending", "waiting", "in_progress"}
+            and run["conclusion"] is None,
+            "negative case must belong to a currently running feature acceptance")
+    # A run can be queued while this job runs and another job awaits a runner.
+    active = [job for job in jobs if job["name"] == "negative-cases"]
+    require(len(active) == 1 and active[0]["run_id"] == parent
+            and active[0]["status"] == "in_progress" and active[0]["conclusion"] is None,
+            "negative case requires the active parent negative-cases job")
+
+
 def gh(args, raw=None):
     attempts = 4 if args[-1].endswith("/logs") else 1
     for attempt in range(attempts):
