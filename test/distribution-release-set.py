@@ -22,7 +22,8 @@ def identity():
 
 
 def report(phase, pages=False):
-    policy = json.loads((ROOT / f'.github/distribution/release-set-{phase}.json').read_text())
+    # Report policy is canonical; user syntax must not become its expected shape.
+    policy = api['expected_policy'](PREFIX, phase)
     files, releases = [], []
     versions = ['0.9.0', '1.0.0', '1.1.0', '1.3.0-beta.1'] + (['1.2.0'] if phase == 'final' else [])
     for index, v in enumerate(versions):

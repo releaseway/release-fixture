@@ -33,3 +33,37 @@ const observed=execFileSync(process.platform==="win32"?"pwsh":"bash",process.pla
 const legacy=JSON.parse(await readFile(env.DISTRIBUTION_REPORT,"utf8"));assert.equal(legacy.schema,1);
 const receipt={schema:1,kind:"release-set-core",candidate:env.AUTOMATION_SHA,sourceCommit:env.GITHUB_SHA,runId:env.GITHUB_RUN_ID,attempt:env.GITHUB_RUN_ATTEMPT,platform:env.RUNNER_OS,report,rerunDigest:rerun.digest,nativeMarker:observed,cases:["partial-rejected","digest-tamper-rejected","rerun-same-digest","schema1-regression","source-change-rejected"]};
 await mkdir("release-set-evidence",{recursive:true});await writeFile("release-set-evidence/receipt.json",JSON.stringify(receipt,null,2)+"\n");
+
+// Supplement the historical receipt without adding new mandatory cases to it.
+// Exercise the committed bundle, not only the source imports used above.
+await mkdir("release-set-contract",{recursive:true});
+const exactFiles=[{from:"bootstrap.sh",to:"bootstrap.sh",required:true},
+  {from:"diagnose.ps1",to:"diagnose.ps1",required:true},
+  {from:"metadata.json",to:"metadata.json",required:false}];
+const legacyPolicy={schema:2,releases:policy.releases,files:exactFiles,
+  aliases:{tag:policy.aliases.tag,files:[{from:"bootstrap.sh",to:"bootstrap.sh"},{from:"diagnose.ps1",to:"diagnose.ps1"}]}};
+const shorthandPolicy={releases:policy.releases,files:["bootstrap.sh",{from:"diagnose.ps1",to:"diagnose.ps1"},exactFiles[2]],
+  aliases:{tag:policy.aliases.tag,files:["bootstrap.sh","diagnose.ps1"]}};
+async function bundled(value,name) {
+  const config=join("release-set-contract",name+".json"),output=resolve("release-set-contract",name+".outputs");
+  await writeFile(config,JSON.stringify(value));await writeFile(output,"");
+  execFileSync(process.execPath,[join(automation,"dist/distribute.cjs")],{env:{...sourceEnv,INPUT_CONFIG:config,GITHUB_OUTPUT:output},encoding:"utf8"});
+  const outputs=Object.fromEntries((await readFile(output,"utf8")).trim().split(/\r?\n/).map(line=>{
+    const equal=line.indexOf("=");return [line.slice(0,equal),line.slice(equal+1)];
+  }));
+  return JSON.parse(await readFile(outputs.report,"utf8"));
+}
+const legacyReport=await bundled(legacyPolicy,"legacy"),shorthandReport=await bundled(shorthandPolicy,"shorthand");
+assert.deepEqual(shorthandReport,legacyReport);
+const invalidConfig=join("release-set-contract","invalid.json"),invalidOutput=resolve("release-set-contract","invalid.outputs");
+await writeFile(invalidConfig,JSON.stringify({...shorthandPolicy,files:["bootstrap.sh",{from:"diagnose.ps1",to:"diagnose.ps1",requried:true}]}));
+await writeFile(invalidOutput,"");
+assert.throws(()=>execFileSync(process.execPath,[join(automation,"dist/distribute.cjs")],{env:{...sourceEnv,INPUT_CONFIG:invalidConfig,GITHUB_OUTPUT:invalidOutput},encoding:"utf8"}),error=>{
+  assert.equal(error.status,1);assert.match(error.stdout,/invalid\.json":1:\d+: Unknown key "requried"/);
+  assert.match(error.stdout,/files\[1\]\.requried/);return true;
+});
+assert.equal(await readFile(invalidOutput,"utf8"),"");
+await writeFile("release-set-contract/result.json",JSON.stringify({schema:1,kind:"distribution-contract",candidate:env.AUTOMATION_SHA,
+  sourceCommit:env.GITHUB_SHA,runId:env.GITHUB_RUN_ID,attempt:env.GITHUB_RUN_ATTEMPT,platform:env.RUNNER_OS,
+  shorthandEqual:true,invalidKeyRejected:true,legacyReport,shorthandReport},null,2)+"\n");
+console.log("public bundle: unversioned mixed files/aliases equal legacy policy and bytes; invalid key location verified");

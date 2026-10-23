@@ -1,11 +1,8 @@
-schema: 1
 files:
   - from: bootstrap.sh
     to: install.sh
-  - from: diagnose.ps1
-    to: diagnose.ps1
-  - from: bootstrap.mjs
-    to: bootstrap.mjs
+  - diagnose.ps1
+  - bootstrap.mjs
   - from: latest.json
     to: updates/latest.json
   - from: latest.json.sig
@@ -14,5 +11,4 @@ files:
     to: updates/public.pem
   - from: well-known.json
     to: .well-known/fixture.json
-  - from: index.html
-    to: index.html
+  - index.html
