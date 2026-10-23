@@ -4,13 +4,20 @@ Test `releaseway/actions/distribute` and its optional Pages workflow through the
 public interfaces. The separate `distribution-acceptance.yml` workflow pins a
 reviewed release-set candidate in `AUTOMATION_SHA` and all literal
 reusable-workflow refs. Read the workflow at the run's fixture SHA for its exact
-candidate. The candidate must implement schema 2 and `site-artifact-id`.
+candidate. The candidate must implement schema-free distribution policies, filename
+shorthand, release sets and `site-artifact-id`. Existing explicit schema policies remain supported.
 
 The default run publishes a new `distribution-<run>-<attempt>` prerelease with
 `latest=false`. It keeps the stable latest Release unchanged and exercises public
 reads, cross-repository read access, tamper rejection, repeat preparation and
 native fixture scripts on Linux, macOS and Windows. It also checks the release-set
 merge and its deterministic rejection cases on those platforms. It does not deploy Pages.
+
+The source jobs also execute the candidate's committed bundle with legacy object
+and unversioned mixed policies against the same assets. They compare complete
+reports and digests and check an invalid key's file/line/column/path. Separate
+`distribution-contract-<platform>-<run>-<attempt>` artifacts retain these results;
+historical receipt case sets and approval requirements are unchanged.
 
 The [consumer guide](https://github.com/releaseway/actions/tree/main/distribute)
 describes the source interfaces and explains how to select a supporting ref.
