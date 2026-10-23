@@ -1,6 +1,6 @@
 {
   "releases": {
-    "tag-prefix": "distribution-set-20261022-39136030a76c1f22-v",
+    "tag-prefix": "distribution-set-20261023-e4812dc5c29c-v",
     "range": ">=0.9.0 <1.2.0 || =1.3.0-beta.1",
     "include-prereleases": true,
     "on-empty": "skip"
@@ -11,7 +11,7 @@
     {"from": "metadata.json", "to": "metadata.json", "required": false}
   ],
   "aliases": {
-    "tag": "distribution-set-20261022-39136030a76c1f22-v1.1.0",
+    "tag": "distribution-set-20261023-e4812dc5c29c-v1.1.0",
     "files": ["install.sh", "install.ps1"]
   }
 }
