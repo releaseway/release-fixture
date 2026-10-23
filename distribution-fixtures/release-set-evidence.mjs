@@ -45,7 +45,7 @@ const legacyPolicy={schema:2,releases:policy.releases,files:exactFiles,
 const shorthandPolicy={releases:policy.releases,files:["bootstrap.sh",{from:"diagnose.ps1",to:"diagnose.ps1"},exactFiles[2]],
   aliases:{tag:policy.aliases.tag,files:["bootstrap.sh","diagnose.ps1"]}};
 async function bundled(value,name) {
-  const config=join("release-set-contract",name+".json"),output=resolve("release-set-contract",name+".outputs");
+  const config=`release-set-contract/${name}.json`,output=resolve("release-set-contract",name+".outputs");
   await writeFile(config,JSON.stringify(value));await writeFile(output,"");
   execFileSync(process.execPath,[join(automation,"dist/distribute.cjs")],{env:{...sourceEnv,INPUT_CONFIG:config,GITHUB_OUTPUT:output},encoding:"utf8"});
   const outputs=Object.fromEntries((await readFile(output,"utf8")).trim().split(/\r?\n/).map(line=>{
@@ -55,7 +55,7 @@ async function bundled(value,name) {
 }
 const legacyReport=await bundled(legacyPolicy,"legacy"),shorthandReport=await bundled(shorthandPolicy,"shorthand");
 assert.deepEqual(shorthandReport,legacyReport);
-const invalidConfig=join("release-set-contract","invalid.json"),invalidOutput=resolve("release-set-contract","invalid.outputs");
+const invalidConfig="release-set-contract/invalid.json",invalidOutput=resolve("release-set-contract","invalid.outputs");
 await writeFile(invalidConfig,JSON.stringify({...shorthandPolicy,files:["bootstrap.sh",{from:"diagnose.ps1",to:"diagnose.ps1",requried:true}]}));
 await writeFile(invalidOutput,"");
 assert.throws(()=>execFileSync(process.execPath,[join(automation,"dist/distribute.cjs")],{env:{...sourceEnv,INPUT_CONFIG:invalidConfig,GITHUB_OUTPUT:invalidOutput},encoding:"utf8"}),error=>{
